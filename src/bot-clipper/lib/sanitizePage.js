@@ -67,19 +67,23 @@ module.exports = (location, dirtyHtml, sanitizer) => {
       parser: {
         lowerCaseTags: true
       },
-      exclusiveFilter: ({ tag, href }) => (tag === 'a' && (!href || href === '#')),
+      exclusiveFilter: ({ tag, attribs }) => (tag === 'a' && (!attribs.href || attribs.href === '#')),
       transformTags: {
         h1: 'h2',
-        a: (tagName, attribs) => {
-          return {
-            tagName,
-            attribs: {
-              ...attribs,
-              href: attribs.href
-                ? absoluteUrl(location, attribs.href)
-                : '#'
+        a: (tagName, rawAttribs) => {
+          const attribs = typeof sanitizer === 'function'
+              ? sanitizer(tagName, rawAttribs)
+              : rawAttribs;
+
+          return attribs.href
+            ? {
+              tagName,
+              attribs: {
+                ...attribs,
+                href: absoluteUrl(location, attribs.href)
+              }
             }
-          };
+            : { tagName: 'span' };
         },
         img: (tagName, rawAttribs) => {
           const attribs = typeof sanitizer === 'function'

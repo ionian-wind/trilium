@@ -1,7 +1,7 @@
-const defaultHandler = require('../websites/default');
 const sanitizePage = require('./sanitizePage');
-const habr = require('../websites/habr');
-const createNote = require('./createNote');
+
+const defaultHandler = require('./websites/default');
+const habr = require('./websites/habr');
 
 const handlersByDomain = new Map([
   ['habr.com', habr]
@@ -13,5 +13,5 @@ module.exports = async url => {
   const page = await clipper.handler(url);
   const { images, content } = sanitizePage(new URL(page.pageUrl), page.content, clipper.sanitize);
 
-  await createNote(domain, { ...page, images, content });
+  return { ...page, domain, images, content };
 };

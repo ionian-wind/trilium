@@ -1,5 +1,6 @@
 const TelegramBot = require('node-telegram-bot-api');
 const clipPage = require('./lib/clipPage');
+const createNote = require('./lib/createNote');
 
 const CLIPPER_PORT = process.env.CLIPPER_PORT || 30005;
 const CLIPPER_URL = process.env.CLIPPER_URL;
@@ -39,7 +40,8 @@ module.exports = () => {
               await bot.sendMessage(msg.chat.id, `Number of links to save: ${links.length}`);
 
               for (const link of links) {
-                await clipPage(link);
+                await createNote(await clipPage(link));
+
                 await bot.sendMessage(msg.chat.id, `Save done: ${link}`, msgOptions);
               }
             }
