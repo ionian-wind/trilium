@@ -95,7 +95,12 @@ module.exports = async (domain, data) => {
 
     if (tags.length > 0) {
       for (const value of tags) {
-        note.setLabel('tag', value);
+        new Attribute({
+          noteId: note.noteId,
+          type: 'label',
+          name: 'tag',
+          value
+        }).save();
       }
     }
 
