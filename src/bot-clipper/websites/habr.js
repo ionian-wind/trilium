@@ -13,7 +13,7 @@ const handler = async pageUrl => {
     content: post.textHtml,
     pageUrl,
     tags: post.tags.map(({ titleHtml }) => titleHtml)
-        .concat(post.hubs.map(({ alias }) => `habr_hub_${alias}`))
+      .concat(post.hubs.map(({ alias }) => `habr_hub_${alias}`))
   };
 };
 

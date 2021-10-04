@@ -70,7 +70,7 @@ module.exports = async data => {
 
   cls.init(async () => {
     const clipperInbox = getClipperInboxNote();
-
+    const { hostname: domain } = new URL(pageUrl);
     const { note } = noteService.createNewNote({
       parentNoteId: clipperInbox.noteId,
       title,
@@ -78,6 +78,7 @@ module.exports = async data => {
       type: 'text'
     });
 
+    note.setLabel('website', domain);
     note.setLabel('clipType', clipType);
 
     if (pageUrl) {
@@ -86,12 +87,7 @@ module.exports = async data => {
 
     if (tags.length > 0) {
       for (const value of tags) {
-        new Attribute({
-          noteId: note.noteId,
-          type: 'label',
-          name: 'tag',
-          value
-        }).save();
+        note.setLabel('tag', value);
       }
     }
 
