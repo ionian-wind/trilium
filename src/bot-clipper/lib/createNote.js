@@ -9,7 +9,7 @@ const dateUtils = require('../../services/date_utils');
 const imageService = require('../../services/image');
 const utils = require('../../services/utils');
 
-const Attribute = require('../../entities/attribute');
+const Attribute = require('../../becca/entities/attribute');
 
 const cls = require('../../services/cls');
 
