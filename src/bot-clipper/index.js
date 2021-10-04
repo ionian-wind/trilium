@@ -28,13 +28,19 @@ module.exports = () => {
                     ? list.concat(msg.text.substring(entity.offset, entity.length))
                     : list
             ), []);
+            const msgOptions = {
+              disable_notification: true,
+              disable_web_page_preview: true,
+              reply_to_message_id: msg.id,
+              allow_sending_without_reply: true
+            };
 
             if (links.length > 0) {
               await bot.sendMessage(msg.chat.id, `Number of links to save: ${links.length}`);
 
               for (const link of links) {
                 await clipPage(link);
-                await bot.sendMessage(msg.chat.id, `Save done: ${link}`);
+                await bot.sendMessage(msg.chat.id, `Save done: ${link}`, msgOptions);
               }
             }
           }
