@@ -41,7 +41,7 @@ const uniqId = () => {
   return `${a * 1000000 + b / 1000}${Math.random()}`.split('.').join('').padEnd(20, 'I').substring(0, 20);
 }
 
-module.exports = (location, dirtyHtml) => {
+module.exports = (location, dirtyHtml, sanitizer) => {
   const imgDup = new Map();
   const images = [];
 
@@ -81,7 +81,11 @@ module.exports = (location, dirtyHtml) => {
             }
           };
         },
-        img: (tagName, attribs) => {
+        img: (tagName, rawAttribs) => {
+          const attribs = typeof sanitizer === 'function'
+            ? sanitizer(tagName, rawAttribs)
+            : rawAttribs;
+
           if (!attribs.src) {
             return {
               tagName,
