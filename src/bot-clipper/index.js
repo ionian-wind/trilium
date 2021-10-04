@@ -39,8 +39,6 @@ module.exports = () => {
               await bot.sendMessage(msg.chat.id, `Number of links to save: ${links.length}`);
 
               for (const link of links) {
-                console.log(link);
-
                 await clipPage(link);
                 await bot.sendMessage(msg.chat.id, `Save done: ${link}`, msgOptions);
               }

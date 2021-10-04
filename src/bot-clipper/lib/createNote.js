@@ -20,31 +20,40 @@ const processContent = async (images, note, content) => {
     for (const { src, imageId } of images) {
       const filename = path.basename(src);
 
-      const response = await axios.get(src, { responseType: 'arraybuffer' });
+      const response = await axios.get(src, { responseType: 'arraybuffer' })
+        .then(response => Buffer.from(response.data, 'binary'))
+        .catch(error => {
+          console.log(error);
+          return null;
+        });
 
-      const {note: imageNote, url} = imageService.saveImage(
-        note.noteId,
-        Buffer.from(response.data, 'binary'),
-        filename,
-        true
-      );
+      if (response) {
+        const {note: imageNote, url} = imageService.saveImage(
+            note.noteId,
+            response,
+            filename,
+            true
+        );
 
-      new Attribute({
-        noteId: imageNote.noteId,
-        type: 'label',
-        name: 'archived'
-      }).save(); // so that these image notes don't show up in search / autocomplete
+        new Attribute({
+          noteId: imageNote.noteId,
+          type: 'label',
+          name: 'archived'
+        }).save(); // so that these image notes don't show up in search / autocomplete
 
-      new Attribute({
-        noteId: note.noteId,
-        type: 'relation',
-        name: 'imageLink',
-        value: imageNote.noteId
-      }).save();
+        new Attribute({
+          noteId: note.noteId,
+          type: 'relation',
+          name: 'imageLink',
+          value: imageNote.noteId
+        }).save();
 
-      console.log(`Replacing ${imageId} with ${url}`);
+        console.log(`Replacing ${imageId} with ${url}`);
 
-      rewrittenContent = utils.replaceAll(rewrittenContent, imageId, url);
+        rewrittenContent = utils.replaceAll(rewrittenContent, imageId, url);
+      } else {
+        rewrittenContent = utils.replaceAll(rewrittenContent, imageId, '/images/icon-black.png');
+      }
     }
   }
 
