@@ -29,6 +29,7 @@ const sqlInit = require('./services/sql_init');
 const port = require('./services/port');
 const host = require('./services/host');
 const semver = require('semver');
+const bot = require('./bot-clipper');
 
 if (!semver.satisfies(process.version, ">=10.5.0")) {
     console.error("Trilium only supports node.js 10.5 and later");
@@ -102,7 +103,11 @@ async function startTrilium() {
         }
     )
 
-    httpServer.on('listening', () => log.info('Listening on port ' + httpServer.address().port));
+    httpServer.on('listening', () => {
+        log.info('Listening on port ' + httpServer.address().port);
+
+        bot();
+    });
 
     ws.init(httpServer, sessionParser);
 
