@@ -1,6 +1,6 @@
 const path = require('path');
 
-const request = require('./request');
+const axios = require('axios');
 
 const attributeService = require('../../services/attributes');
 const noteService = require('../../services/notes');
@@ -20,9 +20,14 @@ const processContent = async (images, note, content) => {
     for (const { src, imageId } of images) {
       const filename = path.basename(src);
 
-      const buffer = await request({ path: src, json: false });
+      const response = await axios.get(src, { responseType: 'arraybuffer' });
 
-      const {note: imageNote, url} = imageService.saveImage(note.noteId, buffer, filename, true);
+      const {note: imageNote, url} = imageService.saveImage(
+        note.noteId,
+        Buffer.from(response.data, 'binary'),
+        filename,
+        true
+      );
 
       new Attribute({
         noteId: imageNote.noteId,

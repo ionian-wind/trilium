@@ -1,14 +1,11 @@
-const request = require('../lib/request');
+const axios = require('axios');
 
 // https://chrome.google.com/webstore/detail/send-to-telegram-for-goog/dgblfklicldlbclahclbkeiacpiiancc
 // https://github.com/zadam/trilium/blob/master/src/routes/api/clipper.js
 module.exports = async pageUrl => {
   const postId = pageUrl.match(/.*?\/(\d+)/)[1];
 
-  const post = await request({
-    host: 'habr.com',
-    path: `/kek/v2/articles/${postId}`
-  });
+  const { data: post } = await axios.get(`https://habr.com/kek/v2/articles/${postId}`);
 
   return {
     title: post.titleHtml,
