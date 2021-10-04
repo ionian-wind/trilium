@@ -24,6 +24,7 @@
     "test-all": "npm run test && npm run test-es6"
   },
   "dependencies": {
+    "@postlight/mercury-parser": "2.2.1",
     "archiver": "5.3.0",
     "async-mutex": "0.3.2",
     "axios": "0.22.0",
@@ -45,6 +46,7 @@
     "express-rate-limit": "5.4.0",
     "express-session": "1.17.2",
     "fs-extra": "10.0.0",
+    "he": "1.2.0",
     "helmet": "4.6.0",
     "html": "1.0.0",
     "html2plaintext": "2.1.2",
@@ -60,6 +62,7 @@
     "mime-types": "2.1.33",
     "multer": "1.4.3",
     "node-abi": "3.2.0",
+    "node-telegram-bot-api": "0.54.0",
     "open": "8.2.1",
     "portscanner": "2.2.0",
     "rand-token": "1.0.1",
