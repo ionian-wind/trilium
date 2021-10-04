@@ -61,7 +61,7 @@ function getClipperInboxNote() {
   return clipperInbox;
 }
 
-module.exports = async data => {
+module.exports = async (domain, data) => {
   let { title, content, pageUrl, images, clipType = 'page', tags = [] } = data;
 
   if (!title || !title.trim()) {
@@ -70,7 +70,6 @@ module.exports = async data => {
 
   cls.init(async () => {
     const clipperInbox = getClipperInboxNote();
-    const { hostname: domain } = new URL(pageUrl);
     const { note } = noteService.createNewNote({
       parentNoteId: clipperInbox.noteId,
       title,

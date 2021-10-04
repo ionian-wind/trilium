@@ -8,10 +8,10 @@ const handlersByDomain = new Map([
 ]);
 
 module.exports = async url => {
-  const domain = (new URL(url)).hostname;
+  const { hostname: domain } = new URL(url);
   const clipper = handlersByDomain.get(domain) || { handler: defaultHandler };
   const page = await clipper.handler(url);
   const { images, content } = sanitizePage(new URL(page.pageUrl), page.content, clipper.sanitize);
 
-  await createNote({ ...page, images, content });
+  await createNote(domain, { ...page, images, content });
 };

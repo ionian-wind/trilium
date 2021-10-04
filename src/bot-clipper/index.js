@@ -25,7 +25,7 @@ module.exports = () => {
           if (Array.isArray(msg.entities) && msg.entities.length > 0) {
             const links = msg.entities.reduce((list, entity) => (
                 entity.type === 'url'
-                    ? list.concat(msg.text.substring(entity.offset, entity.length))
+                    ? list.concat(msg.text.substring(entity.offset, entity.length).trim())
                     : list
             ), []);
             const msgOptions = {
@@ -39,6 +39,8 @@ module.exports = () => {
               await bot.sendMessage(msg.chat.id, `Number of links to save: ${links.length}`);
 
               for (const link of links) {
+                console.log(link);
+
                 await clipPage(link);
                 await bot.sendMessage(msg.chat.id, `Save done: ${link}`, msgOptions);
               }
