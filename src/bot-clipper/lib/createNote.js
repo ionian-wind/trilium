@@ -70,8 +70,8 @@ function getClipperInboxNote() {
   return clipperInbox;
 }
 
-module.exports = async (domain, data) => {
-  let { title, content, pageUrl, images, clipType = 'page', tags = [] } = data;
+module.exports = async (data) => {
+  let { title, content, pageUrl, images, clipType = 'page', tags = [], domain } = data;
 
   if (!title || !title.trim()) {
     title = 'Clipped note from ' + pageUrl;
