@@ -25,7 +25,7 @@ module.exports = () => {
           if (Array.isArray(msg.entities) && msg.entities.length > 0) {
             const links = msg.entities.reduce((list, entity) => (
                 entity.type === 'url'
-                    ? list.concat(msg.text.substring(entity.offset, entity.length).trim())
+                    ? list.concat(msg.text.substring(entity.offset, entity.offset + entity.length).trim())
                     : list
             ), []);
             const msgOptions = {
