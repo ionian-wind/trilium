@@ -67,7 +67,7 @@ module.exports = (location, dirtyHtml, sanitizer) => {
       parser: {
         lowerCaseTags: true
       },
-      exclusiveFilter: ({ tag, attribs }) => (tag === 'a' && (!attribs.href || attribs.href === '#')),
+      exclusiveFilter: ({ tag, attribs }) => (tag === 'a' && (!attribs || !attribs.href || attribs.href === '#')),
       transformTags: {
         h1: 'h2',
         a: (tagName, rawAttribs) => {
