@@ -120,9 +120,8 @@ function protectNote(req) {
 
 function setNoteTypeMime(req) {
     // can't use [] destructuring because req.params is not iterable
-    const noteId = req.params[0];
-    const type = req.params[1];
-    const mime = req.params[2];
+    const {noteId} = req.params;
+    const {type, mime} = req.body;
 
     const note = becca.getNote(noteId);
     note.type = type;
@@ -202,6 +201,10 @@ function changeTitle(req) {
     }
 
     const noteTitleChanged = note.title !== title;
+
+    if (noteTitleChanged) {
+        noteService.saveNoteRevision(note);
+    }
 
     note.title = title;
 

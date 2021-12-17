@@ -47,7 +47,11 @@ const BUILTIN_ATTRIBUTES = [
     { type: 'label', name: 'pageSize' },
     { type: 'label', name: 'viewType' },
     { type: 'label', name: 'mapRootNoteId' },
-    { type: 'label', name: 'excludeFromNoteMap' },
+    { type: 'label', name: 'bookmarked' },
+    { type: 'label', name: 'bookmarkFolder' },
+    { type: 'label', name: 'sorted' },
+    { type: 'label', name: 'top' },
+    { type: 'label', name: 'fullContentWidth' },
 
     // relation names
     { type: 'relation', name: 'runOnNoteCreation', isDangerous: true },
@@ -61,6 +65,7 @@ const BUILTIN_ATTRIBUTES = [
     { type: 'relation', name: 'renderNote', isDangerous: true }
 ];
 
+/** @returns {Note[]} */
 function getNotesWithLabel(name, value) {
     const query = formatAttrForSearch({type: 'label', name, value}, true);
     return searchService.searchNotes(query, {
@@ -70,10 +75,24 @@ function getNotesWithLabel(name, value) {
 }
 
 // TODO: should be in search service
+/** @returns {Note|null} */
 function getNoteWithLabel(name, value) {
-    const notes = getNotesWithLabel(name, value);
+    // optimized version (~20 times faster) without using normal search, useful for e.g. finding date notes
+    const attrs = becca.findAttributes('label', name);
 
-    return notes.length > 0 ? notes[0] : null;
+    if (value === undefined) {
+        return attrs[0]?.getNote();
+    }
+
+    value = value?.toLowerCase();
+
+    for (const attr of attrs) {
+        if (attr.value.toLowerCase() === value) {
+            return attr.getNote();
+        }
+    }
+
+    return null;
 }
 
 function createLabel(noteId, name, value = "") {

@@ -53,15 +53,21 @@ class NoteShort {
     }
 
     update(row) {
-        /** @param {string} */
+        /** @type {string} */
         this.noteId = row.noteId;
-        /** @param {string} */
+        /** @type {string} */
         this.title = row.title;
-        /** @param {boolean} */
+        /** @type {boolean} */
         this.isProtected = !!row.isProtected;
-        /** @param {string} one of 'text', 'code', 'file' or 'render' */
+        /**
+         * one of 'text', 'code', 'file' or 'render'
+         * @type {string}
+         */
         this.type = row.type;
-        /** @param {string} content-type, e.g. "application/json" */
+        /**
+         * content-type, e.g. "application/json"
+         * @type {string}
+         */
         this.mime = row.mime;
     }
 
@@ -644,12 +650,9 @@ class NoteShort {
     }
 
     /**
-     * Clear note's attributes cache to force fresh reload for next attribute request.
-     * Cache is note instance scoped.
+     * @deprecated NOOP
      */
-    invalidateAttributeCache() {
-        this.__attributeCache = null;
-    }
+    invalidateAttributeCache() {}
 
     /**
      * Get relations which target this note
@@ -681,7 +684,7 @@ class NoteShort {
         return await this.froca.getNoteComplement(this.noteId);
     }
 
-    get toString() {
+    toString() {
         return `Note(noteId=${this.noteId}, title=${this.title})`;
     }
 

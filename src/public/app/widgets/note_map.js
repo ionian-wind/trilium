@@ -17,7 +17,7 @@ const TPL = `<div class="note-map-widget" style="position: relative;">
             top: 10px; 
             right: 10px; 
             background-color: var(--accented-background-color);
-            z-index: 1000;
+            z-index: 10; /* should be below dropdown (note actions) */
         }
         
         .map-type-switcher .bx {
@@ -44,6 +44,9 @@ export default class NoteMapWidget extends NoteContextAwareWidget {
 
     doRender() {
         this.$widget = $(TPL);
+
+        const documentStyle = window.getComputedStyle(document.documentElement);
+        this.themeStyle = documentStyle.getPropertyValue('--theme-style')?.trim();
 
         this.$container = this.$widget.find(".note-map-container");
         this.$styleResolver = this.$widget.find('.style-resolver');
@@ -150,16 +153,22 @@ export default class NoteMapWidget extends NoteContextAwareWidget {
     }
 
     stringToColor(str) {
+        if (this.themeStyle === "dark") {
+            str = "0" + str; // magic lightening modifier
+        }
+
         let hash = 0;
         for (let i = 0; i < str.length; i++) {
             hash = str.charCodeAt(i) + ((hash << 5) - hash);
         }
-        let colour = '#';
+
+        let color = '#';
         for (let i = 0; i < 3; i++) {
             const value = (hash >> (i * 8)) & 0xFF;
-            colour += ('00' + value.toString(16)).substr(-2);
+
+            color += ('00' + value.toString(16)).substr(-2);
         }
-        return colour;
+        return color;
     }
 
     rgb2hex(rgb) {
@@ -323,16 +332,64 @@ export default class NoteMapWidget extends NoteContextAwareWidget {
 
         if (this.widgetMode === 'ribbon') {
             setTimeout(() => {
-                const node = this.nodes.find(node => node.id === this.noteId);
+                const subGraphNoteIds = this.getSubGraphConnectedToCurrentNote(data);
 
-                this.graph.centerAt(node.x, node.y, 500);
+                this.graph.zoomToFit(400, 50, node => subGraphNoteIds.has(node.id));
+
+                if (subGraphNoteIds.size < 30) {
+                    this.graph.d3VelocityDecay(0.4);
+                }
             }, 1000);
         }
         else if (this.widgetMode === 'type') {
             if (data.nodes.length > 1) {
-                setTimeout(() => this.graph.zoomToFit(400, 10), 1000);
+                setTimeout(() => {
+                    this.graph.zoomToFit(400, 10);
+
+                    if (data.nodes.length < 30) {
+                        this.graph.d3VelocityDecay(0.4);
+                    }
+                }, 1000);
             }
         }
+    }
+
+    getSubGraphConnectedToCurrentNote(data) {
+        function getGroupedLinks(links, type) {
+            const map = {};
+
+            for (const link of links) {
+                const key = link[type].id;
+                map[key] = map[key] || [];
+                map[key].push(link);
+            }
+
+            return map;
+        }
+
+        const linksBySource = getGroupedLinks(data.links, "source");
+        const linksByTarget = getGroupedLinks(data.links, "target");
+
+        const subGraphNoteIds = new Set();
+
+        function traverseGraph(noteId) {
+            if (subGraphNoteIds.has(noteId)) {
+                return;
+            }
+
+            subGraphNoteIds.add(noteId);
+
+            for (const link of linksBySource[noteId] || []) {
+                traverseGraph(link.target.id);
+            }
+
+            for (const link of linksByTarget[noteId] || []) {
+                traverseGraph(link.source.id);
+            }
+        }
+
+        traverseGraph(this.noteId);
+        return subGraphNoteIds;
     }
 
     cleanup() {

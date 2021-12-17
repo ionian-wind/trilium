@@ -50,7 +50,12 @@ const ALLOWED_OPTIONS = new Set([
     'autoCollapseNoteTree',
     'autoReadonlySizeText',
     'autoReadonlySizeCode',
-    'overrideThemeFonts'
+    'overrideThemeFonts',
+    'dailyBackupEnabled',
+    'weeklyBackupEnabled',
+    'monthlyBackupEnabled',
+    'maxContentWidth',
+    'compressImages'
 ]);
 
 function getOptions() {

@@ -39,6 +39,10 @@ eventService.subscribe(eventService.NOTE_TITLE_CHANGED, note => {
 eventService.subscribe([ eventService.ENTITY_CHANGED, eventService.ENTITY_DELETED ], ({ entityName, entity }) => {
     if (entityName === 'attributes') {
         runAttachedRelations(entity.getNote(), 'runOnAttributeChange', entity);
+
+        if (entity.type === 'label' && entity.name === 'sorted') {
+            handleSortedAttribute(entity);
+        }
     }
     else if (entityName === 'notes') {
         runAttachedRelations(entity, 'runOnNoteChange', entity);
@@ -83,17 +87,7 @@ eventService.subscribe(eventService.ENTITY_CREATED, ({ entityName, entity }) => 
             }
         }
         else if (entity.type === 'label' && entity.name === 'sorted') {
-            treeService.sortNotesIfNeeded(entity.noteId);
-
-            if (entity.isInheritable) {
-                const note = becca.notes[entity.noteId];
-
-                if (note) {
-                    for (const noteId of note.getSubtreeNoteIds()) {
-                        treeService.sortNotesIfNeeded(noteId);
-                    }
-                }
-            }
+            handleSortedAttribute(entity);
         }
     }
     else if (entityName === 'notes') {
@@ -122,6 +116,20 @@ function processInverseRelations(entityName, entity, handler) {
     }
 }
 
+function handleSortedAttribute(entity) {
+    treeService.sortNotesIfNeeded(entity.noteId);
+
+    if (entity.isInheritable) {
+        const note = becca.notes[entity.noteId];
+
+        if (note) {
+            for (const noteId of note.getSubtreeNoteIds()) {
+                treeService.sortNotesIfNeeded(noteId);
+            }
+        }
+    }
+}
+
 eventService.subscribe(eventService.ENTITY_CHANGED, ({ entityName, entity }) => {
     processInverseRelations(entityName, entity, (definition, note, targetNote) => {
         // we need to make sure that also target's inverse attribute exists and if not, then create it
@@ -138,7 +146,8 @@ eventService.subscribe(eventService.ENTITY_CHANGED, ({ entityName, entity }) => 
                 isInheritable: entity.isInheritable
             }).save();
 
-            targetNote.invalidateAttributeCache();
+            // becca will not be updated before we'll check from the other side which would create infinite relation creation (#2269)
+            targetNote.invalidateThisCache();
         }
     });
 });
@@ -150,9 +159,6 @@ eventService.subscribe(eventService.ENTITY_DELETED, ({ entityName, entity }) => 
 
         for (const relation of relations) {
             if (relation.value === note.noteId) {
-                note.invalidateAttributeCache();
-                targetNote.invalidateAttributeCache();
-
                 relation.markAsDeleted();
             }
         }

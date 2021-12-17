@@ -25,18 +25,8 @@ function createNote(parentNote, noteTitle) {
     }).note;
 }
 
-function getNoteStartingWith(parentNoteId, startsWith) {
-    const noteId = sql.getValue(`SELECT notes.noteId FROM notes JOIN branches USING(noteId) 
-                                    WHERE parentNoteId = ? AND title LIKE '${startsWith}%'
-                                    AND notes.isDeleted = 0 AND isProtected = 0 
-                                    AND branches.isDeleted = 0`, [parentNoteId]);
-
-    return becca.getNote(noteId);
-}
-
-/** @return {Note} */
+/** @returns {Note} */
 function getRootCalendarNote() {
-    // some caching here could be useful (e.g. in CLS)
     let rootNote = attributeService.getNoteWithLabel(CALENDAR_ROOT_LABEL);
 
     if (!rootNote) {
@@ -58,7 +48,7 @@ function getRootCalendarNote() {
     return rootNote;
 }
 
-/** @return {Note} */
+/** @returns {Note} */
 function getYearNote(dateStr, rootNote) {
     if (!rootNote) {
         rootNote = getRootCalendarNote();
@@ -66,8 +56,7 @@ function getYearNote(dateStr, rootNote) {
 
     const yearStr = dateStr.substr(0, 4);
 
-    let yearNote = attributeService.getNoteWithLabel(YEAR_LABEL, yearStr)
-        || getNoteStartingWith(rootNote.noteId, yearStr);
+    let yearNote = attributeService.getNoteWithLabel(YEAR_LABEL, yearStr);
 
     if (yearNote) {
         return yearNote;
@@ -98,7 +87,7 @@ function getMonthNoteTitle(rootNote, monthNumber, dateObj) {
         .replace(/{month}/g, monthName);
 }
 
-/** @return {Note} */
+/** @returns {Note} */
 function getMonthNote(dateStr, rootNote) {
     if (!rootNote) {
         rootNote = getRootCalendarNote();
@@ -113,17 +102,11 @@ function getMonthNote(dateStr, rootNote) {
         return monthNote;
     }
 
-    const yearNote = getYearNote(dateStr, rootNote);
-
-    monthNote = getNoteStartingWith(yearNote.noteId, monthNumber);
-
-    if (monthNote) {
-        return monthNote;
-    }
-
     const dateObj = dateUtils.parseLocalDate(dateStr);
 
     const noteTitle = getMonthNoteTitle(rootNote, monthNumber, dateObj);
+
+    const yearNote = getYearNote(dateStr, rootNote);
 
     sql.transactional(() => {
         monthNote = createNote(yearNote, noteTitle);
@@ -147,13 +130,13 @@ function getDateNoteTitle(rootNote, dayNumber, dateObj) {
 
     return pattern
         .replace(/{dayInMonthPadded}/g, dayNumber)
-        .replace(/{isoDate}/g, dateUtils.localNowDate())
+        .replace(/{isoDate}/g, dateUtils.utcDateStr(dateObj))
         .replace(/{weekDay}/g, weekDay)
         .replace(/{weekDay3}/g, weekDay.substr(0, 3))
         .replace(/{weekDay2}/g, weekDay.substr(0, 2));
 }
 
-/** @return {Note} */
+/** @returns {Note} */
 function getDateNote(dateStr) {
     let dateNote = attributeService.getNoteWithLabel(DATE_LABEL, dateStr);
 
@@ -164,12 +147,6 @@ function getDateNote(dateStr) {
     const rootNote = getRootCalendarNote();
     const monthNote = getMonthNote(dateStr, rootNote);
     const dayNumber = dateStr.substr(8, 2);
-
-    dateNote = getNoteStartingWith(monthNote.noteId, dayNumber);
-
-    if (dateNote) {
-        return dateNote;
-    }
 
     const dateObj = dateUtils.parseLocalDate(dateStr);
 
@@ -216,7 +193,7 @@ function getWeekNote(dateStr, options = {}) {
 
     const dateObj = getStartOfTheWeek(dateUtils.parseLocalDate(dateStr), startOfTheWeek);
 
-    dateStr = dateUtils.utcDateStr(dateObj);
+    dateStr = dateUtils.utcDateTimeStr(dateObj);
 
     return getDateNote(dateStr);
 }

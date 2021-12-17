@@ -20,6 +20,7 @@ function returnImage(req, res) {
     }
 
     res.set('Content-Type', image.mime);
+    res.set("Cache-Control", "no-cache, no-store, must-revalidate");
 
     res.send(image.getContent());
 }
@@ -38,7 +39,7 @@ function uploadImage(req) {
         return [400, "Unknown image type: " + file.mimetype];
     }
 
-    const {url} = imageService.saveImage(noteId, file.buffer, file.originalname, true);
+    const {url} = imageService.saveImage(noteId, file.buffer, file.originalname, true, true);
 
     return {
         uploaded: true,

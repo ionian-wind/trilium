@@ -29,20 +29,24 @@ function load() {
     // using raw query and passing arrays to avoid allocating new objects
     // this is worth it for becca load since it happens every run and blocks the app until finished
 
-    for (const row of sql.getRawRows(`SELECT noteId, title, type, mime, isProtected, dateCreated, dateModified, utcDateCreated, utcDateModified FROM notes WHERE isDeleted = 0`, [])) {
+    for (const row of sql.getRawRows(`SELECT noteId, title, type, mime, isProtected, dateCreated, dateModified, utcDateCreated, utcDateModified FROM notes WHERE isDeleted = 0`)) {
         new Note().update(row).init();
     }
 
-    for (const row of sql.getRawRows(`SELECT branchId, noteId, parentNoteId, prefix, notePosition, isExpanded, utcDateModified FROM branches WHERE isDeleted = 0`, [])) {
+    for (const row of sql.getRawRows(`SELECT branchId, noteId, parentNoteId, prefix, notePosition, isExpanded, utcDateModified FROM branches WHERE isDeleted = 0`)) {
         new Branch().update(row).init();
     }
 
-    for (const row of sql.getRawRows(`SELECT attributeId, noteId, type, name, value, isInheritable, position, utcDateModified FROM attributes WHERE isDeleted = 0`, [])) {
+    for (const row of sql.getRawRows(`SELECT attributeId, noteId, type, name, value, isInheritable, position, utcDateModified FROM attributes WHERE isDeleted = 0`)) {
         new Attribute().update(row).init();
     }
 
     for (const row of sql.getRows(`SELECT name, value, isSynced, utcDateModified FROM options`)) {
         new Option(row);
+    }
+
+    for (const noteId in becca.notes) {
+        becca.notes[noteId].sortParents();
     }
 
     becca.loaded = true;
@@ -66,7 +70,7 @@ function postProcessEntityUpdate(entityName, entity) {
     }
 }
 
-eventService.subscribe([eventService.ENTITY_CHANGE_SYNCED],  ({entityName, entityRow}) => {
+eventService.subscribeBeccaLoader([eventService.ENTITY_CHANGE_SYNCED],  ({entityName, entityRow}) => {
     if (!becca.loaded) {
         return;
     }
@@ -89,7 +93,7 @@ eventService.subscribe([eventService.ENTITY_CHANGE_SYNCED],  ({entityName, entit
     postProcessEntityUpdate(entityName, entityRow);
 });
 
-eventService.subscribe(eventService.ENTITY_CHANGED,  ({entityName, entity}) => {
+eventService.subscribeBeccaLoader(eventService.ENTITY_CHANGED,  ({entityName, entity}) => {
     if (!becca.loaded) {
         return;
     }
@@ -97,7 +101,7 @@ eventService.subscribe(eventService.ENTITY_CHANGED,  ({entityName, entity}) => {
     postProcessEntityUpdate(entityName, entity);
 });
 
-eventService.subscribe([eventService.ENTITY_DELETED, eventService.ENTITY_DELETE_SYNCED],  ({entityName, entityId}) => {
+eventService.subscribeBeccaLoader([eventService.ENTITY_DELETED, eventService.ENTITY_DELETE_SYNCED],  ({entityName, entityId}) => {
     if (!becca.loaded) {
         return;
     }
@@ -113,6 +117,8 @@ eventService.subscribe([eventService.ENTITY_DELETED, eventService.ENTITY_DELETE_
 
 function noteDeleted(noteId) {
     delete becca.notes[noteId];
+
+    becca.dirtyNoteSetCache();
 }
 
 function branchDeleted(branchId) {
@@ -149,7 +155,7 @@ function branchUpdated(branch) {
 
     if (childNote) {
         childNote.flatTextCache = null;
-        childNote.resortParents();
+        childNote.sortParents();
     }
 }
 
@@ -214,7 +220,7 @@ function noteReorderingUpdated(branchIdList) {
     }
 }
 
-eventService.subscribe(eventService.ENTER_PROTECTED_SESSION, () => {
+eventService.subscribeBeccaLoader(eventService.ENTER_PROTECTED_SESSION, () => {
     try {
         becca.decryptProtectedNotes();
     }
@@ -223,7 +229,7 @@ eventService.subscribe(eventService.ENTER_PROTECTED_SESSION, () => {
     }
 });
 
-eventService.subscribe(eventService.LEAVE_PROTECTED_SESSION, load);
+eventService.subscribeBeccaLoader(eventService.LEAVE_PROTECTED_SESSION, load);
 
 module.exports = {
     load,

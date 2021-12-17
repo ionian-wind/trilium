@@ -44,6 +44,7 @@ function getHiddenRoot() {
         // isInheritable: false means that this notePath is automatically not preffered but at the same time
         // the flag is not inherited to the children
         hidden.addLabel('archived', "", false);
+        hidden.addLabel('excludeFromNoteMap', "", true);
     }
 
     return hidden;
@@ -137,7 +138,15 @@ function saveSqlConsole(sqlConsoleNoteId) {
         attributeService.getNoteWithLabel('sqlConsoleHome')
         || dateNoteService.getDateNote(today);
 
-    return sqlConsoleNote.cloneTo(sqlConsoleHome.noteId);
+    const result = sqlConsoleNote.cloneTo(sqlConsoleHome.noteId);
+
+    for (const parentBranch of sqlConsoleNote.getParentBranches()) {
+        if (parentBranch.parentNote.hasAncestor("hidden")) {
+            parentBranch.markAsDeleted();
+        }
+    }
+
+    return result;
 }
 
 function createSearchNote(searchString, ancestorNoteId) {
@@ -158,29 +167,54 @@ function createSearchNote(searchString, ancestorNoteId) {
     return note;
 }
 
-function saveSearchNote(searchNoteId) {
-    const searchNote = becca.getNote(searchNoteId);
-
+function getSearchHome() {
     const hoistedNote = getHoistedNote();
-    let searchHome;
 
     if (!hoistedNote.isRoot()) {
-        searchHome = hoistedNote.searchNoteInSubtree('#hoistedSearchHome')
+        return hoistedNote.searchNoteInSubtree('#hoistedSearchHome')
             || hoistedNote.searchNoteInSubtree('#searchHome')
             || hoistedNote;
-    }
-    else {
+    } else {
         const today = dateUtils.localNowDate();
 
-        searchHome = hoistedNote.searchNoteInSubtree('#searchHome')
+        return hoistedNote.searchNoteInSubtree('#searchHome')
             || dateNoteService.getDateNote(today);
     }
+}
 
-    return searchNote.cloneTo(searchHome.noteId);
+function saveSearchNote(searchNoteId) {
+    const searchNote = becca.getNote(searchNoteId);
+    const searchHome = getSearchHome();
+
+    const result = searchNote.cloneTo(searchHome.noteId);
+
+    for (const parentBranch of searchNote.getParentBranches()) {
+        if (parentBranch.parentNote.hasAncestor("hidden")) {
+            parentBranch.markAsDeleted();
+        }
+    }
+
+    return result;
 }
 
 function getHoistedNote() {
     return becca.getNote(cls.getHoistedNoteId());
+}
+
+function getShareRoot() {
+    let shareRoot = becca.getNote('share');
+
+    if (!shareRoot) {
+        shareRoot = noteService.createNewNote({
+            noteId: 'share',
+            title: 'share',
+            type: 'text',
+            content: '',
+            parentNoteId: getHiddenRoot().noteId
+        }).note;
+    }
+
+    return shareRoot;
 }
 
 function createMissingSpecialNotes() {
@@ -189,6 +223,13 @@ function createMissingSpecialNotes() {
     getSinglesNoteRoot();
     getSinglesNoteRoot();
     getGlobalNoteMap();
+    getShareRoot();
+
+    const hidden = getHiddenRoot();
+
+    if (!hidden.hasOwnedLabel('excludeFromNoteMap')) {
+        hidden.addLabel('excludeFromNoteMap', "", true);
+    }
 }
 
 module.exports = {

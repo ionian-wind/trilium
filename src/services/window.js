@@ -59,7 +59,6 @@ async function createMainWindow() {
         height: mainWindowState.height,
         title: 'Trilium Notes',
         webPreferences: {
-            enableRemoteModule: true,
             nodeIntegration: true,
             contextIsolation: false,
             spellcheck: spellcheckEnabled
@@ -75,6 +74,8 @@ async function createMainWindow() {
     mainWindow.on('closed', () => mainWindow = null);
 
     const {webContents} = mainWindow;
+
+    require("@electron/remote/main").enable(webContents);
 
     webContents.on('new-window', (e, url) => {
         if (url !== webContents.getURL()) {
@@ -165,9 +166,15 @@ async function registerGlobalShortcuts() {
     }
 }
 
+function getMainWindow() {
+    return mainWindow;
+}
+
+
 module.exports = {
     createMainWindow,
     createSetupWindow,
     closeSetupWindow,
-    registerGlobalShortcuts
+    registerGlobalShortcuts,
+    getMainWindow
 };

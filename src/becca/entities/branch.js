@@ -5,6 +5,10 @@ const AbstractEntity = require("./abstract_entity.js");
 const sql = require("../../services/sql.js");
 const dateUtils = require("../../services/date_utils.js");
 
+/**
+ * Branch represents a relationship between a child note and its parent note. Trilium allows a note to have multiple
+ * parents.
+ */
 class Branch extends AbstractEntity {
     static get entityName() { return "branches"; }
     static get primaryKeyName() { return "branchId"; }
@@ -35,25 +39,28 @@ class Branch extends AbstractEntity {
     }
 
     update([branchId, noteId, parentNoteId, prefix, notePosition, isExpanded, utcDateModified]) {
-        /** @param {string} */
+        /** @type {string} */
         this.branchId = branchId;
-        /** @param {string} */
+        /** @type {string} */
         this.noteId = noteId;
-        /** @param {string} */
+        /** @type {string} */
         this.parentNoteId = parentNoteId;
-        /** @param {string} */
+        /** @type {string} */
         this.prefix = prefix;
-        /** @param {int} */
+        /** @type {int} */
         this.notePosition = notePosition;
-        /** @param {boolean} */
+        /** @type {boolean} */
         this.isExpanded = !!isExpanded;
-        /** @param {string} */
+        /** @type {string} */
         this.utcDateModified = utcDateModified;
 
         return this;
     }
 
     init() {
+        this.becca.branches[this.branchId] = this;
+        this.becca.childParentToBranch[`${this.noteId}-${this.parentNoteId}`] = this;
+
         if (this.branchId === 'root') {
             return;
         }
@@ -72,16 +79,13 @@ class Branch extends AbstractEntity {
         if (!parentNote.children.includes(childNote)) {
             parentNote.children.push(childNote);
         }
-
-        this.becca.branches[this.branchId] = this;
-        this.becca.childParentToBranch[`${this.noteId}-${this.parentNoteId}`] = this;
     }
 
-    /** @return {Note} */
+    /** @returns {Note} */
     get childNote() {
         if (!(this.noteId in this.becca.notes)) {
             // entities can come out of order in sync, create skeleton which will be filled later
-            this.becca.notes[this.noteId] = new Note({noteId: this.noteId});
+            this.becca.addNote(this.noteId, new Note({noteId: this.noteId}));
         }
 
         return this.becca.notes[this.noteId];
@@ -91,14 +95,18 @@ class Branch extends AbstractEntity {
         return this.childNote;
     }
 
-    /** @return {Note} */
+    /** @returns {Note} */
     get parentNote() {
         if (!(this.parentNoteId in this.becca.notes)) {
             // entities can come out of order in sync, create skeleton which will be filled later
-            this.becca.notes[this.parentNoteId] = new Note({noteId: this.parentNoteId});
+            this.becca.addNote(this.parentNoteId, new Note({noteId: this.parentNoteId}));
         }
 
         return this.becca.notes[this.parentNoteId];
+    }
+
+    get isDeleted() {
+        return !(this.branchId in this.becca.branches);
     }
 
     beforeSaving() {
@@ -128,9 +136,7 @@ class Branch extends AbstractEntity {
             notePosition: this.notePosition,
             isExpanded: this.isExpanded,
             isDeleted: false,
-            utcDateModified: this.utcDateModified,
-            // not used for anything, will be later dropped
-            utcDateCreated: dateUtils.utcNowDateTime()
+            utcDateModified: this.utcDateModified
         };
     }
 

@@ -1,9 +1,9 @@
 "use strict";
 
+const normalizeString = require("normalize-strings");
 const lex = require('./lex');
 const handleParens = require('./handle_parens');
 const parse = require('./parse');
-const NoteSet = require("../note_set");
 const SearchResult = require("../search_result");
 const SearchContext = require("../search_context");
 const becca = require('../../../becca/becca');
@@ -64,17 +64,11 @@ function loadNeededInfoFromDatabase() {
  * @return {SearchResult[]}
  */
 function findResultsWithExpression(expression, searchContext) {
-    let allNotes = Object.values(becca.notes);
-
     if (searchContext.dbLoadNeeded) {
         loadNeededInfoFromDatabase();
     }
 
-    // in the process of loading data sometimes we create "skeleton" note instances which are expected to be filled later
-    // in case of inconsistent data this might not work and search will then crash on these
-    allNotes = allNotes.filter(note => note.type !== undefined);
-
-    const allNoteSet = new NoteSet(allNotes);
+    const allNoteSet = becca.getAllNoteSet();
 
     const executionContext = {
         noteIdToNotePath: {}
@@ -166,16 +160,6 @@ function findResultsWithQuery(query, searchContext) {
     return findResultsWithExpression(expression, searchContext);
 }
 
-function searchTrimmedNotes(query, searchContext) {
-    const allSearchResults = findResultsWithQuery(query, searchContext);
-    const trimmedSearchResults = allSearchResults.slice(0, 200);
-
-    return {
-        count: allSearchResults.length,
-        results: trimmedSearchResults
-    };
-}
-
 function searchNotesForAutocomplete(query) {
     const searchContext = new SearchContext({
         fastSearch: true,
@@ -183,11 +167,14 @@ function searchNotesForAutocomplete(query) {
         fuzzyAttributeSearch: true
     });
 
-    const {results} = searchTrimmedNotes(query, searchContext);
+    const allSearchResults = findResultsWithQuery(query, searchContext)
+        .filter(res => !res.notePathArray.includes("hidden"));
 
-    highlightSearchResults(results, searchContext.highlightedTokens);
+    const trimmed = allSearchResults.slice(0, 200);
 
-    return results.map(result => {
+    highlightSearchResults(trimmed, searchContext.highlightedTokens);
+
+    return trimmed.map(result => {
         return {
             notePath: result.notePath,
             noteTitle: beccaService.getNoteTitle(result.noteId),
@@ -231,12 +218,23 @@ function highlightSearchResults(searchResults, highlightedTokens) {
         }
     }
 
-    for (const token of highlightedTokens) {
-        // this approach won't work for strings with diacritics
-        const tokenRegex = new RegExp("(" + utils.escapeRegExp(token) + ")", "gi");
+    function wrapText(text, start, length, prefix, suffix) {
+        return text.substring(0, start) + prefix + text.substr(start, length) + suffix + text.substring(start + length);
+    }
 
+    for (const token of highlightedTokens) {
         for (const result of searchResults) {
-            result.highlightedNotePathTitle = result.highlightedNotePathTitle.replace(tokenRegex, "{$1}");
+            // Reset token
+            const tokenRegex = new RegExp(utils.escapeRegExp(token), "gi");
+            let match;
+
+            // Find all matches
+            while ((match = tokenRegex.exec(normalizeString(result.highlightedNotePathTitle))) !== null) {
+                result.highlightedNotePathTitle = wrapText(result.highlightedNotePathTitle, match.index, token.length, "{", "}");
+
+                // 2 characters are added, so we need to adjust the index
+                tokenRegex.lastIndex += 2;
+            }
         }
     }
 
@@ -267,7 +265,6 @@ function formatAttribute(attr) {
 }
 
 module.exports = {
-    searchTrimmedNotes,
     searchNotesForAutocomplete,
     findResultsWithQuery,
     searchNotes

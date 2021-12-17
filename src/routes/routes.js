@@ -39,6 +39,7 @@ const keysRoute = require('./api/keys');
 const backendLogRoute = require('./api/backend_log');
 const statsRoute = require('./api/stats');
 const fontsRoute = require('./api/fonts');
+const shareRoutes = require('../share/routes');
 
 const log = require('../services/log');
 const express = require('express');
@@ -57,9 +58,8 @@ const csrfMiddleware = csurf({
     path: '' // nothing so cookie is valid only for current path
 });
 
-function apiResultHandler(req, res, result) {
-    res.setHeader('trilium-max-entity-change-id', entityChangesService.getMaxEntityChangeId());
-
+/** Handling common patterns. If entity is not caught, serialization to JSON will fail */
+function convertEntitiesToPojo(result) {
     if (result instanceof AbstractEntity) {
         result = result.getPojo();
     }
@@ -70,22 +70,59 @@ function apiResultHandler(req, res, result) {
             }
         }
     }
+    else {
+        if (result && result.note instanceof AbstractEntity) {
+            result.note = result.note.getPojo();
+        }
+
+        if (result && result.branch instanceof AbstractEntity) {
+            result.branch = result.branch.getPojo();
+        }
+    }
+
+    if (result && result.executionResult) { // from runOnBackend()
+        result.executionResult = convertEntitiesToPojo(result.executionResult);
+    }
+
+    return result;
+}
+
+function apiResultHandler(req, res, result) {
+    res.setHeader('trilium-max-entity-change-id', entityChangesService.getMaxEntityChangeId());
+
+    result = convertEntitiesToPojo(result);
 
     // if it's an array and first element is integer then we consider this to be [statusCode, response] format
     if (Array.isArray(result) && result.length > 0 && Number.isInteger(result[0])) {
         const [statusCode, response] = result;
 
-        res.status(statusCode).send(response);
-
         if (statusCode !== 200 && statusCode !== 201 && statusCode !== 204) {
             log.info(`${req.method} ${req.originalUrl} returned ${statusCode} with response ${JSON.stringify(response)}`);
         }
+
+        return send(res, statusCode, response);
     }
     else if (result === undefined) {
-        res.status(204).send();
+        return send(res, 204, "");
     }
     else {
-        res.send(result);
+        return send(res, 200, result);
+    }
+}
+
+function send(res, statusCode, response) {
+    if (typeof response === 'string') {
+        res.status(statusCode).send(response);
+
+        return response.length;
+    }
+    else {
+        const json = JSON.stringify(response);
+
+        res.setHeader("Content-Type", "application/json");
+        res.status(statusCode).send(json);
+
+        return json.length;
     }
 }
 
@@ -115,9 +152,9 @@ function route(method, path, middleware, routeHandler, resultHandler, transactio
                 if (result && result.then) {
                     result
                         .then(actualResult => {
-                            resultHandler(req, res, actualResult);
+                            const responseLength = resultHandler(req, res, actualResult);
 
-                            log.request(req, res, Date.now() - start);
+                            log.request(req, res, Date.now() - start, responseLength);
                         })
                         .catch(e => {
                             log.error(`${method} ${path} threw exception: ` + e.stack);
@@ -126,9 +163,9 @@ function route(method, path, middleware, routeHandler, resultHandler, transactio
                         });
                 }
                 else {
-                    resultHandler(req, res, result);
+                    const responseLength = resultHandler(req, res, result);
 
-                    log.request(req, res, Date.now() - start);
+                    log.request(req, res, Date.now() - start, responseLength);
                 }
             }
         }
@@ -176,7 +213,7 @@ function register(app) {
     apiRoute(POST, '/api/notes/:parentNoteId/children', notesApiRoute.createNote);
     apiRoute(PUT, '/api/notes/:noteId/sort-children', notesApiRoute.sortChildNotes);
     apiRoute(PUT, '/api/notes/:noteId/protect/:isProtected', notesApiRoute.protectNote);
-    apiRoute(PUT, /\/api\/notes\/(.*)\/type\/(.*)\/mime\/(.*)/, notesApiRoute.setNoteTypeMime);
+    apiRoute(PUT, '/api/notes/:noteId/type', notesApiRoute.setNoteTypeMime);
     apiRoute(GET, '/api/notes/:noteId/revisions', noteRevisionsApiRoute.getNoteRevisions);
     apiRoute(DELETE, '/api/notes/:noteId/revisions', noteRevisionsApiRoute.eraseAllNoteRevisions);
     apiRoute(GET, '/api/notes/:noteId/revisions/:noteRevisionId', noteRevisionsApiRoute.getNoteRevision);
@@ -223,9 +260,11 @@ function register(app) {
 
     apiRoute(POST, '/api/note-map/:noteId/tree', noteMapRoute.getTreeMap);
     apiRoute(POST, '/api/note-map/:noteId/link', noteMapRoute.getLinkMap);
+    apiRoute(GET, '/api/note-map/:noteId/backlinks', noteMapRoute.getBacklinks);
 
     apiRoute(GET, '/api/special-notes/inbox/:date', specialNotesRoute.getInboxNote);
     apiRoute(GET, '/api/special-notes/date/:date', specialNotesRoute.getDateNote);
+    apiRoute(GET, '/api/special-notes/week/:date', specialNotesRoute.getWeekNote);
     apiRoute(GET, '/api/special-notes/month/:month', specialNotesRoute.getMonthNote);
     apiRoute(GET, '/api/special-notes/year/:year', specialNotesRoute.getYearNote);
     apiRoute(GET, '/api/special-notes/notes-for-month/:month', specialNotesRoute.getDateNotesForMonth);
@@ -257,6 +296,7 @@ function register(app) {
     route(GET, '/api/sync/changed', [auth.checkApiAuth], syncApiRoute.getChanged, apiResultHandler);
     route(PUT, '/api/sync/update', [auth.checkApiAuth], syncApiRoute.update, apiResultHandler);
     route(POST, '/api/sync/finished', [auth.checkApiAuth], syncApiRoute.syncFinished, apiResultHandler);
+    route(POST, '/api/sync/check-entity-changes', [auth.checkApiAuth], syncApiRoute.checkEntityChanges, apiResultHandler);
     route(POST, '/api/sync/queue-sector/:entityName/:sector', [auth.checkApiAuth], syncApiRoute.queueSector, apiResultHandler);
     route(GET, '/api/sync/stats', [], syncApiRoute.getStats, apiResultHandler);
 
@@ -328,6 +368,8 @@ function register(app) {
     apiRoute(POST, '/api/delete-notes-preview', notesApiRoute.getDeleteNotesPreview);
 
     route(GET, '/api/fonts', [auth.checkApiAuthOrElectron], fontsRoute.getFontCss);
+
+    shareRoutes.register(router);
 
     app.use('', router);
 }

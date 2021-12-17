@@ -2,6 +2,9 @@
    value from this theme will be used. For this reason this theme uses "html" instead of ":root"
    since it's less "specific" and thus serves as default */
 html {
+    /* either light or dark, colored theme with darker tones are also dark, used e.g. for note map node colors */
+    --theme-style: light;
+
     --main-font-family: MontserratLight;
     --main-font-size: normal;
 
@@ -55,9 +58,11 @@ html {
     --launcher-pane-text-color: #333;
 
     --active-tab-background-color: #ddd;
+    --active-tab-hover-background-color: #d1d1d1;
     --active-tab-text-color: black;
 
-    --inactive-tab-background-color: #f5f5f5;
+    --inactive-tab-background-color: #f0f0f0;
+    --inactive-tab-hover-background-color: #e3e3e3;
     --inactive-tab-text-color: #666;
 
     --scrollbar-border-color: #ddd;

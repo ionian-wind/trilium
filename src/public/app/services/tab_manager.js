@@ -14,6 +14,9 @@ export default class TabManager extends Component {
 
         this.activeNtxId = null;
 
+        // elements are arrays of note contexts for each tab (one main context + subcontexts [splits])
+        this.recentlyClosedTabs = [];
+
         this.tabsUpdate = new SpacedUpdate(async () => {
             if (!appContext.isMainWindow) {
                 return;
@@ -126,17 +129,17 @@ export default class TabManager extends Component {
             window.history.pushState(null, "", url);
         }
 
-        document.title = "Trilium Notes";
-
-        if (activeNoteContext.note) {
+        const titleFragments = [
             // it helps navigating in history if note title is included in the title
-            document.title += " - " + activeNoteContext.note.title;
-        }
+            activeNoteContext.note?.title,
+            "Trilium Notes"
+        ].filter(Boolean);
+        document.title = titleFragments.join(" - ");
 
         this.triggerEvent('activeNoteChanged'); // trigger this even in on popstate event
     }
 
-    /** @return {NoteContext[]} */
+    /** @returns {NoteContext[]} */
     getNoteContexts() {
         return this.noteContexts;
     }
@@ -172,20 +175,20 @@ export default class TabManager extends Component {
         return activeContext ? activeContext.notePath : null;
     }
 
-    /** @return {NoteShort} */
+    /** @returns {NoteShort} */
     getActiveContextNote() {
         const activeContext = this.getActiveContext();
         return activeContext ? activeContext.note : null;
     }
 
-    /** @return {string|null} */
+    /** @returns {string|null} */
     getActiveContextNoteId() {
         const activeNote = this.getActiveContextNote();
 
         return activeNote ? activeNote.noteId : null;
     }
 
-    /** @return {string|null} */
+    /** @returns {string|null} */
     getActiveContextNoteType() {
         const activeNote = this.getActiveContextNote();
 
@@ -234,7 +237,7 @@ export default class TabManager extends Component {
         if (noteContext) {
             const resolvedNotePath = await treeService.resolveNotePath(notePath, noteContext.hoistedNoteId);
 
-            if (resolvedNotePath.includes(noteContext.hoistedNoteId)) {
+            if (resolvedNotePath.includes(noteContext.hoistedNoteId) || resolvedNotePath.includes("hidden")) {
                 hoistedNoteId = noteContext.hoistedNoteId;
             }
         }
@@ -296,10 +299,22 @@ export default class TabManager extends Component {
     async removeNoteContext(ntxId) {
         const noteContextToRemove = this.getNoteContextById(ntxId);
 
+        if (noteContextToRemove.isMainContext()) {
+            // forbid removing last main note context
+            // this was previously allowed (was replaced with empty tab) but this proved to be prone to race conditions
+            const mainNoteContexts = this.getNoteContexts().filter(nc => nc.isMainContext());
+
+            if (mainNoteContexts.length === 1) {
+                mainNoteContexts[0].setEmpty();
+                return;
+            }
+        }
+
         // close dangling autocompletes after closing the tab
         $(".aa-input").autocomplete("close");
 
-        const ntxIdsToRemove = noteContextToRemove.getSubContexts().map(nc => nc.ntxId);
+        const noteContextsToRemove = noteContextToRemove.getSubContexts();
+        const ntxIdsToRemove = noteContextsToRemove.map(nc => nc.ntxId);
 
         await this.triggerEvent('beforeTabRemove', { ntxIds: ntxIdsToRemove });
 
@@ -321,6 +336,8 @@ export default class TabManager extends Component {
         }
 
         this.children = this.children.filter(nc => !ntxIdsToRemove.includes(nc.ntxId));
+
+        this.recentlyClosedTabs.push(noteContextsToRemove);
 
         this.triggerEvent('noteContextRemoved', {ntxIds: ntxIdsToRemove});
 
@@ -347,7 +364,7 @@ export default class TabManager extends Component {
         const order = {};
         let i = 0;
 
-        for (const ntxId in ntxIdsInOrder) {
+        for (const ntxId of ntxIdsInOrder) {
             order[ntxId] = i++;
         }
 
@@ -408,6 +425,29 @@ export default class TabManager extends Component {
         this.removeNoteContext(ntxId);
 
         this.triggerCommand('openInWindow', {notePath, hoistedNoteId});
+    }
+
+    async reopenLastTabCommand() {
+        if (this.recentlyClosedTabs.length > 0) {
+            const noteContexts = this.recentlyClosedTabs.pop();
+
+            for (const noteContext of noteContexts) {
+                this.child(noteContext);
+
+                await this.triggerEvent('newNoteContextCreated', {noteContext});
+            }
+
+            const noteContextToActivate = noteContexts.length === 1
+                ? noteContexts[0]
+                : noteContexts.find(nc => nc.isMainContext());
+
+            this.activateNoteContext(noteContextToActivate.ntxId);
+
+            await this.triggerEvent('noteSwitched', {
+                noteContext: noteContextToActivate,
+                notePath: noteContextToActivate.notePath
+            });
+        }
     }
 
     hoistedNoteChangedEvent() {

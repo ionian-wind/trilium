@@ -3,15 +3,18 @@ const sourceIdService = require('./source_id');
 const dateUtils = require('./date_utils');
 const log = require('./log');
 const cls = require('./cls');
+const utils = require('./utils');
 const becca = require("../becca/becca");
 
 let maxEntityChangeId = 0;
 
-function addEntityChange(origEntityChange, keepOriginalId = false) {
+function addEntityChange(origEntityChange) {
     const ec = {...origEntityChange};
 
-    if (!keepOriginalId) {
-        delete ec.id;
+    delete ec.id;
+
+    if (!ec.changeId) {
+        ec.changeId = utils.randomString(12);
     }
 
     ec.sourceId = ec.sourceId || cls.getSourceId() || sourceIdService.getCurrentSourceId();

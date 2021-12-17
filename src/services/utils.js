@@ -264,7 +264,7 @@ function timeLimit(promise, limitMs, errorMessage) {
 
             res(result);
         })
-        .catch(error => rej(error));
+            .catch(error => rej(error));
 
         setTimeout(() => {
             if (!resolved) {
@@ -296,6 +296,10 @@ function removeDiacritic(str) {
 
 function normalize(str) {
     return removeDiacritic(str).toLowerCase();
+}
+
+function filterAttributeName(name) {
+    return name.replace(/[^\p{L}\p{N}_:]/ug, "");
 }
 
 module.exports = {
@@ -331,5 +335,6 @@ module.exports = {
     timeLimit,
     deferred,
     removeDiacritic,
-    normalize
+    normalize,
+    filterAttributeName
 };

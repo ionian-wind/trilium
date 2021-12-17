@@ -37,17 +37,27 @@ const TPL = `
         padding-top: 5px;
     }
     
+    .tree-actions {
+        padding: 4px 0;
+        background-color: var(--launcher-pane-background-color);
+        z-index: 100;
+        position: absolute;
+        bottom: 0;
+        display: flex;
+        align-items: flex-end;
+        justify-content: flex-end;
+        right: 11.77px;
+    }
+    
     button.tree-floating-button {
         font-size: 1.5em;
-        padding: 2px;
+        padding: 5px;
+        margin-right: 5px;
         max-height: 34px;
         color: var(--launcher-pane-text-color);
         background-color: var(--button-background-color);
         border-radius: var(--button-border-radius);
         border: 1px solid transparent;
-        z-index: 100;
-        position: absolute;
-        bottom: 13px;
     }
     
     button.tree-floating-button:hover {
@@ -80,16 +90,19 @@ const TPL = `
     
     <div class="tree"></div>
     
-    <button class="tree-floating-button bx bx-layer-minus collapse-tree-button" 
-            title="Collapse note tree" 
-            data-trigger-command="collapseTree"></button>
+    <div class="tree-actions">
+        <button class="tree-floating-button bx bx-layer-minus collapse-tree-button" 
+                title="Collapse note tree" 
+                data-trigger-command="collapseTree"></button>
+        
+        <button class="tree-floating-button bx bx-crosshair scroll-to-active-note-button" 
+                title="Scroll to active note" 
+                data-trigger-command="scrollToActiveNote"></button>
+        
+        <button class="tree-floating-button bx bx-cog tree-settings-button" 
+                title="Tree settings"></button>
+    </div>
     
-    <button class="tree-floating-button bx bx-crosshair scroll-to-active-note-button" 
-            title="Scroll to active note" 
-            data-trigger-command="scrollToActiveNote"></button>
-    
-    <button class="tree-floating-button bx bx-cog tree-settings-button" 
-            title="Tree settings"></button>
     
     <div class="tree-settings-popup">
         <div class="form-check">
@@ -137,6 +150,7 @@ export default class NoteTreeWidget extends NoteContextAwareWidget {
     doRender() {
         this.$widget = $(TPL);
         this.$tree = this.$widget.find('.tree');
+        this.$treeActions = this.$widget.find(".tree-actions");
 
         this.$tree.on("mousedown", ".unhoist-button", () => hoistedNoteService.unhoist());
         this.$tree.on("mousedown", ".refresh-search-button", e => this.refreshSearch(e));
@@ -187,20 +201,16 @@ export default class NoteTreeWidget extends NoteContextAwareWidget {
             this.$hideIncludedImages.prop("checked", this.hideIncludedImages);
             this.$autoCollapseNoteTree.prop("checked", this.autoCollapseNoteTree);
 
-            let top = this.$treeSettingsButton[0].offsetTop;
-            let left = this.$treeSettingsButton[0].offsetLeft;
-            top -= this.$treeSettingsPopup.outerHeight() + 10;
-            left += this.$treeSettingsButton.outerWidth() - this.$treeSettingsPopup.outerWidth();
-
-            if (left < 0) {
-                left = 0;
-            }
+            const top = this.$treeActions[0].offsetTop - (this.$treeSettingsPopup.outerHeight());
+            const left = Math.max(
+                0,
+                this.$treeActions[0].offsetLeft - this.$treeSettingsPopup.outerWidth() + this.$treeActions.outerWidth()
+            );
 
             this.$treeSettingsPopup.css({
-                display: "block",
-                top: top,
-                left: left
-            }).addClass("show");
+                top,
+                left
+            }).show();
 
             return false;
         });
@@ -681,12 +691,12 @@ export default class NoteTreeWidget extends NoteContextAwareWidget {
         return extraClasses.join(" ");
     }
 
-    /** @return {FancytreeNode[]} */
+    /** @returns {FancytreeNode[]} */
     getSelectedNodes(stopOnParents = false) {
         return this.tree.getSelectedNodes(stopOnParents);
     }
 
-    /** @return {FancytreeNode[]} */
+    /** @returns {FancytreeNode[]} */
     getSelectedOrActiveNodes(node = null) {
         const nodes = this.getSelectedNodes(true);
 
@@ -771,7 +781,7 @@ export default class NoteTreeWidget extends NoteContextAwareWidget {
         }
     }
 
-    /** @return {FancytreeNode} */
+    /** @returns {FancytreeNode} */
     async getNodeFromPath(notePath, expand = false, logErrors = true) {
         utils.assertArguments(notePath);
         /** @let {FancytreeNode} */
@@ -838,24 +848,24 @@ export default class NoteTreeWidget extends NoteContextAwareWidget {
         return parentNode;
     }
 
-    /** @return {FancytreeNode} */
+    /** @returns {FancytreeNode} */
     findChildNode(parentNode, childNoteId) {
         return parentNode.getChildren().find(childNode => childNode.data.noteId === childNoteId);
     }
 
-    /** @return {FancytreeNode} */
+    /** @returns {FancytreeNode} */
     async expandToNote(notePath, logErrors = true) {
         return this.getNodeFromPath(notePath, true, logErrors);
     }
 
-    /** @return {FancytreeNode[]} */
+    /** @returns {FancytreeNode[]} */
     getNodesByBranch(branch) {
         utils.assertArguments(branch);
 
         return this.getNodesByNoteId(branch.noteId).filter(node => node.data.branchId === branch.branchId);
     }
 
-    /** @return {FancytreeNode[]} */
+    /** @returns {FancytreeNode[]} */
     getNodesByNoteId(noteId) {
         utils.assertArguments(noteId);
 

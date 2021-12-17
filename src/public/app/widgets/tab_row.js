@@ -33,9 +33,9 @@ const TAB_SIZE_MINI = 48;
 const TAB_TPL = `
 <div class="note-tab">
   <div class="note-tab-wrapper">
+    <div class="note-tab-drag-handle"></div>
     <div class="note-tab-icon"></div>
     <div class="note-tab-title"></div>
-    <div class="note-tab-drag-handle"></div>
     <div class="note-tab-close" title="Close tab" data-trigger-command="closeActiveTab"><span>×</span></div>
   </div>
 </div>`;
@@ -169,8 +169,6 @@ const TAB_ROW_TPL = `
         bottom: 0;
         right: 0;
         left: 0;
-        border-top-left-radius: 8px;
-        border-top-right-radius: 8px;
     }
     
     .tab-row-widget .note-tab .note-tab-close {
@@ -186,6 +184,15 @@ const TAB_ROW_TPL = `
         font-size: 24px;
         position: relative;
         top: -6px;
+        cursor: pointer;
+    }
+    
+    .tab-row-widget .note-tab:hover .note-tab-wrapper {
+        background-color: var(--inactive-tab-hover-background-color);
+    }
+    
+    .tab-row-widget .note-tab[active]:hover .note-tab-wrapper {
+        background-color: var(--active-tab-hover-background-color);
     }
     
     .tab-row-widget .note-tab .note-tab-close:hover {
