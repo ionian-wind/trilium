@@ -23,7 +23,7 @@ function getInboxNote(date) {
     }
     else {
         inbox = attributeService.getNoteWithLabel('inbox')
-            || dateNoteService.getDateNote(date);
+            || dateNoteService.getDayNote(date);
     }
 
     return inbox;
@@ -34,6 +34,7 @@ function getHiddenRoot() {
 
     if (!hidden) {
         hidden = noteService.createNewNote({
+            branchId: 'hidden',
             noteId: 'hidden',
             title: 'hidden',
             type: 'text',
@@ -136,7 +137,7 @@ function saveSqlConsole(sqlConsoleNoteId) {
 
     const sqlConsoleHome =
         attributeService.getNoteWithLabel('sqlConsoleHome')
-        || dateNoteService.getDateNote(today);
+        || dateNoteService.getDayNote(today);
 
     const result = sqlConsoleNote.cloneTo(sqlConsoleHome.noteId);
 
@@ -178,7 +179,7 @@ function getSearchHome() {
         const today = dateUtils.localNowDate();
 
         return hoistedNote.searchNoteInSubtree('#searchHome')
-            || dateNoteService.getDateNote(today);
+            || dateNoteService.getDayNote(today);
     }
 }
 
@@ -206,11 +207,12 @@ function getShareRoot() {
 
     if (!shareRoot) {
         shareRoot = noteService.createNewNote({
+            branchId: 'share',
             noteId: 'share',
-            title: 'share',
+            title: 'Shared notes',
             type: 'text',
             content: '',
-            parentNoteId: getHiddenRoot().noteId
+            parentNoteId: 'root'
         }).note;
     }
 
@@ -220,10 +222,8 @@ function getShareRoot() {
 function createMissingSpecialNotes() {
     getSinglesNoteRoot();
     getSqlConsoleRoot();
-    getSinglesNoteRoot();
-    getSinglesNoteRoot();
     getGlobalNoteMap();
-    getShareRoot();
+    // share root is not automatically created since it's visible in the tree and many won't need it/use it
 
     const hidden = getHiddenRoot();
 
@@ -238,5 +238,6 @@ module.exports = {
     saveSqlConsole,
     createSearchNote,
     saveSearchNote,
-    createMissingSpecialNotes
+    createMissingSpecialNotes,
+    getShareRoot
 };

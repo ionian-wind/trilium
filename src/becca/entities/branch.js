@@ -1,9 +1,9 @@
 "use strict";
 
-const Note = require('./note.js');
-const AbstractEntity = require("./abstract_entity.js");
-const sql = require("../../services/sql.js");
-const dateUtils = require("../../services/date_utils.js");
+const Note = require('./note');
+const AbstractEntity = require("./abstract_entity");
+const sql = require("../../services/sql");
+const dateUtils = require("../../services/date_utils");
 
 /**
  * Branch represents a relationship between a child note and its parent note. Trilium allows a note to have multiple
@@ -58,7 +58,10 @@ class Branch extends AbstractEntity {
     }
 
     init() {
-        this.becca.branches[this.branchId] = this;
+        if (this.branchId) {
+            this.becca.branches[this.branchId] = this;
+        }
+
         this.becca.childParentToBranch[`${this.noteId}-${this.parentNoteId}`] = this;
 
         if (this.branchId === 'root') {
@@ -84,7 +87,7 @@ class Branch extends AbstractEntity {
     /** @returns {Note} */
     get childNote() {
         if (!(this.noteId in this.becca.notes)) {
-            // entities can come out of order in sync, create skeleton which will be filled later
+            // entities can come out of order in sync/import, create skeleton which will be filled later
             this.becca.addNote(this.noteId, new Note({noteId: this.noteId}));
         }
 
@@ -98,7 +101,7 @@ class Branch extends AbstractEntity {
     /** @returns {Note} */
     get parentNote() {
         if (!(this.parentNoteId in this.becca.notes)) {
-            // entities can come out of order in sync, create skeleton which will be filled later
+            // entities can come out of order in sync/import, create skeleton which will be filled later
             this.becca.addNote(this.parentNoteId, new Note({noteId: this.parentNoteId}));
         }
 

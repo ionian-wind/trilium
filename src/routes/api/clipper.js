@@ -36,7 +36,7 @@ function getClipperInboxNote() {
     let clipperInbox = attributeService.getNoteWithLabel('clipperInbox');
 
     if (!clipperInbox) {
-        clipperInbox = dateNoteService.getDateNote(dateUtils.localNowDate());
+        clipperInbox = dateNoteService.getDayNote(dateUtils.localNowDate());
     }
 
     return clipperInbox;
@@ -143,6 +143,9 @@ function processContent(images, note, content) {
             rewrittenContent = utils.replaceAll(rewrittenContent, imageId, url);
         }
     }
+
+    // fallback if parsing/downloading images fails for some reason on the extension side (
+    rewrittenContent = noteService.downloadImages(note.noteId, rewrittenContent);
 
     return rewrittenContent;
 }

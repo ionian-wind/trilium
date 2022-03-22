@@ -15,9 +15,21 @@ function uploadImage(req) {
 
     const originalName = "Sender image." + imageType(file.buffer).ext;
 
-    const parentNote = dateNoteService.getDateNote(req.headers['x-local-date']);
+    const parentNote = dateNoteService.getDayNote(req.headers['x-local-date']);
 
-    const {noteId} = imageService.saveImage(parentNote.noteId, file.buffer, originalName, true);
+    const {note, noteId} = imageService.saveImage(parentNote.noteId, file.buffer, originalName, true);
+
+    const labelsStr = req.headers['x-labels'];
+
+    if (labelsStr?.trim()) {
+        const labels = JSON.parse(labelsStr);
+
+        for (const {name, value} of labels) {
+            note.setLabel(attributeService.sanitizeAttributeName(name), value);
+        }
+    }
+
+    note.setLabel("sentFromSender");
 
     return {
         noteId: noteId
@@ -25,7 +37,7 @@ function uploadImage(req) {
 }
 
 function saveNote(req) {
-    const parentNote = dateNoteService.getDateNote(req.headers['x-local-date']);
+    const parentNote = dateNoteService.getDayNote(req.headers['x-local-date']);
 
     const {note, branch} = noteService.createNewNote({
         parentNoteId: parentNote.noteId,

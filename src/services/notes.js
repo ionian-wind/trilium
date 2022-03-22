@@ -102,8 +102,13 @@ function createNewNote(params) {
         throw new Error(`Parent note "${params.parentNoteId}" not found.`);
     }
 
-    if (!params.title || params.title.trim().length === 0) {
-        throw new Error(`Note title must not be empty`);
+    if (params.title === null || params.title === undefined) {
+        // empty title is allowed since it's possible to create such in the UI
+        throw new Error(`Note title must be set`);
+    }
+
+    if (params.content === null || params.content === undefined) {
+        throw new Error(`Note content must be set`);
     }
 
     return sql.transactional(() => {
@@ -118,6 +123,7 @@ function createNewNote(params) {
         note.setContent(params.content);
 
         const branch = new Branch({
+            branchId: params.branchId,
             noteId: note.noteId,
             parentNoteId: params.parentNoteId,
             notePosition: params.notePosition !== undefined ? params.notePosition : getNewNotePosition(params.parentNoteId),
@@ -131,6 +137,8 @@ function createNewNote(params) {
 
         triggerNoteTitleChanged(note);
         triggerChildNoteCreated(note, parentNote);
+
+        log.info(`Created new note ${note.noteId}, branch ${branch.branchId} of type ${note.type}, mime ${note.mime}`);
 
         return {
             note,
@@ -359,7 +367,7 @@ function downloadImages(noteId, content) {
             // which upon the download of all the images will update the note if the links have not been fixed before
 
             sql.transactional(() => {
-                const imageNotes = becca.getNotes(Object.values(imageUrlToNoteIdMapping));
+                const imageNotes = becca.getNotes(Object.values(imageUrlToNoteIdMapping), true);
 
                 const origNote = becca.getNote(noteId);
 
@@ -518,7 +526,7 @@ function updateNote(noteId, noteUpdates) {
 
 /**
  * @param {Branch} branch
- * @param {string} deleteId
+ * @param {string|null} deleteId
  * @param {TaskContext} taskContext
  *
  * @return {boolean} - true if note has been deleted, false otherwise
@@ -540,7 +548,7 @@ function deleteBranch(branch, deleteId, taskContext) {
     branch.markAsDeleted(deleteId);
 
     const note = branch.getNote();
-    const notDeletedBranches = note.getBranches();
+    const notDeletedBranches = note.getParentBranches();
 
     if (notDeletedBranches.length === 0) {
         for (const childBranch of note.getChildBranches()) {
@@ -565,6 +573,17 @@ function deleteBranch(branch, deleteId, taskContext) {
     }
     else {
         return false;
+    }
+}
+
+/**
+ * @param {Note} note
+ * @param {string|null} deleteId
+ * @param {TaskContext} taskContext
+ */
+function deleteNote(note, deleteId, taskContext) {
+    for (const branch of note.getParentBranches()) {
+        deleteBranch(branch, deleteId, taskContext);
     }
 }
 
@@ -615,7 +634,10 @@ function undeleteBranch(branchId, deleteId, taskContext) {
     taskContext.increaseProgressCount();
 
     if (note.isDeleted && note.deleteId === deleteId) {
-        new Note(note).save();
+        // becca entity was already created as skeleton in "new Branch()" above
+        const noteEntity = becca.getNote(note.noteId);
+        noteEntity.updateFromRow(note);
+        noteEntity.save();
 
         const attributes = sql.getRows(`
                 SELECT * FROM attributes 
@@ -719,6 +741,8 @@ function eraseBranches(branchIdsToErase) {
     sql.executeMany(`DELETE FROM branches WHERE branchId IN (???)`, branchIdsToErase);
 
     setEntityChangesAsErased(sql.getManyRows(`SELECT * FROM entity_changes WHERE entityName = 'branches' AND entityId IN (???)`, branchIdsToErase));
+
+    log.info(`Erased branches: ${JSON.stringify(branchIdsToErase)}`);
 }
 
 function eraseAttributes(attributeIdsToErase) {
@@ -729,26 +753,31 @@ function eraseAttributes(attributeIdsToErase) {
     sql.executeMany(`DELETE FROM attributes WHERE attributeId IN (???)`, attributeIdsToErase);
 
     setEntityChangesAsErased(sql.getManyRows(`SELECT * FROM entity_changes WHERE entityName = 'attributes' AND entityId IN (???)`, attributeIdsToErase));
+
+    log.info(`Erased attributes: ${JSON.stringify(attributeIdsToErase)}`);
 }
 
 function eraseDeletedEntities(eraseEntitiesAfterTimeInSeconds = null) {
-    if (eraseEntitiesAfterTimeInSeconds === null) {
-        eraseEntitiesAfterTimeInSeconds = optionService.getOptionInt('eraseEntitiesAfterTimeInSeconds');
-    }
+    // this is important also so that the erased entity changes are sent to the connected clients
+    sql.transactional(() => {
+        if (eraseEntitiesAfterTimeInSeconds === null) {
+            eraseEntitiesAfterTimeInSeconds = optionService.getOptionInt('eraseEntitiesAfterTimeInSeconds');
+        }
 
-    const cutoffDate = new Date(Date.now() - eraseEntitiesAfterTimeInSeconds * 1000);
+        const cutoffDate = new Date(Date.now() - eraseEntitiesAfterTimeInSeconds * 1000);
 
-    const noteIdsToErase = sql.getColumn("SELECT noteId FROM notes WHERE isDeleted = 1 AND utcDateModified <= ?", [dateUtils.utcDateTimeStr(cutoffDate)]);
+        const noteIdsToErase = sql.getColumn("SELECT noteId FROM notes WHERE isDeleted = 1 AND utcDateModified <= ?", [dateUtils.utcDateTimeStr(cutoffDate)]);
 
-    eraseNotes(noteIdsToErase);
+        eraseNotes(noteIdsToErase);
 
-    const branchIdsToErase = sql.getColumn("SELECT branchId FROM branches WHERE isDeleted = 1 AND utcDateModified <= ?", [dateUtils.utcDateTimeStr(cutoffDate)]);
+        const branchIdsToErase = sql.getColumn("SELECT branchId FROM branches WHERE isDeleted = 1 AND utcDateModified <= ?", [dateUtils.utcDateTimeStr(cutoffDate)]);
 
-    eraseBranches(branchIdsToErase);
+        eraseBranches(branchIdsToErase);
 
-    const attributeIdsToErase = sql.getColumn("SELECT attributeId FROM attributes WHERE isDeleted = 1 AND utcDateModified <= ?", [dateUtils.utcDateTimeStr(cutoffDate)]);
+        const attributeIdsToErase = sql.getColumn("SELECT attributeId FROM attributes WHERE isDeleted = 1 AND utcDateModified <= ?", [dateUtils.utcDateTimeStr(cutoffDate)]);
 
-    eraseAttributes(attributeIdsToErase);
+        eraseAttributes(attributeIdsToErase);
+    });
 }
 
 function eraseNotesWithDeleteId(deleteId) {
@@ -785,7 +814,7 @@ function duplicateSubtree(origNoteId, newParentNoteId) {
 
     const origNote = becca.notes[origNoteId];
     // might be null if orig note is not in the target newParentNoteId
-    const origBranch = origNote.getBranches().find(branch => branch.parentNoteId === newParentNoteId);
+    const origBranch = origNote.getParentBranches().find(branch => branch.parentNoteId === newParentNoteId);
 
     const noteIdMapping = getNoteIdMapping(origNote);
 
@@ -910,6 +939,7 @@ module.exports = {
     createNewNoteWithTarget,
     updateNote,
     deleteBranch,
+    deleteNote,
     undeleteNote,
     protectNoteRecursively,
     scanForLinks,
@@ -919,5 +949,6 @@ module.exports = {
     triggerNoteTitleChanged,
     eraseDeletedNotesNow,
     eraseNotesWithDeleteId,
-    saveNoteRevision
+    saveNoteRevision,
+    downloadImages
 };

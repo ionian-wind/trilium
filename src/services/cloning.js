@@ -9,15 +9,20 @@ const TaskContext = require("./task_context");
 const utils = require('./utils');
 const becca = require("../becca/becca");
 const beccaService = require("../becca/becca_service");
+const log = require("./log");
 
-function cloneNoteToParent(noteId, parentBranchId, prefix) {
-    const parentBranch = becca.getBranch(parentBranchId);
+function cloneNoteToNote(noteId, parentNoteId, prefix) {
+    if (parentNoteId === 'share') {
+        const specialNotesService = require('./special_notes');
+        // share root note is created lazily
+        specialNotesService.getShareRoot();
+    }
 
-    if (isNoteDeleted(noteId) || isNoteDeleted(parentBranch.noteId)) {
+    if (isNoteDeleted(noteId) || isNoteDeleted(parentNoteId)) {
         return { success: false, message: 'Note is deleted.' };
     }
 
-    const validationResult = treeService.validateParentChild(parentBranch.noteId, noteId);
+    const validationResult = treeService.validateParentChild(parentNoteId, noteId);
 
     if (!validationResult.success) {
         return validationResult;
@@ -25,19 +30,33 @@ function cloneNoteToParent(noteId, parentBranchId, prefix) {
 
     const branch = new Branch({
         noteId: noteId,
-        parentNoteId: parentBranch.noteId,
+        parentNoteId: parentNoteId,
         prefix: prefix,
         isExpanded: 0
     }).save();
 
-    parentBranch.isExpanded = true; // the new target should be expanded so it immediately shows up to the user
-    parentBranch.save();
+    log.info(`Cloned note ${noteId} to new parent note ${parentNoteId} with prefix ${prefix}`);
 
     return {
         success: true,
         branchId: branch.branchId,
-        notePath: beccaService.getNotePath(parentBranch.noteId).path + "/" + noteId
+        notePath: beccaService.getNotePath(parentNoteId).path + "/" + noteId
     };
+}
+
+function cloneNoteToBranch(noteId, parentBranchId, prefix) {
+    const parentBranch = becca.getBranch(parentBranchId);
+
+    if (!parentBranch) {
+        return { success: false, message: `Parent branch ${parentBranchId} does not exist.` };
+    }
+
+    const ret = cloneNoteToNote(noteId, parentBranch.noteId, prefix);
+
+    parentBranch.isExpanded = true; // the new target should be expanded so it immediately shows up to the user
+    parentBranch.save();
+
+    return ret;
 }
 
 function ensureNoteIsPresentInParent(noteId, parentNoteId, prefix) {
@@ -57,6 +76,8 @@ function ensureNoteIsPresentInParent(noteId, parentNoteId, prefix) {
         prefix: prefix,
         isExpanded: 0
     }).save();
+
+    log.info(`Ensured note ${noteId} is in parent note ${parentNoteId} with prefix ${prefix}`);
 }
 
 function ensureNoteIsAbsentFromParent(noteId, parentNoteId) {
@@ -64,8 +85,14 @@ function ensureNoteIsAbsentFromParent(noteId, parentNoteId) {
     const branch = becca.getBranch(branchId);
 
     if (branch) {
+        if (branch.getNote().getParentBranches().length <= 1) {
+            throw new Error(`Cannot remove branch ${branch.branchId} between child ${noteId} and parent ${parentNoteId} because this would delete the note as well.`);
+        }
+
         const deleteId = utils.randomString(10);
         noteService.deleteBranch(branch, deleteId, new TaskContext());
+
+        log.info(`Ensured note ${noteId} is NOT in parent note ${parentNoteId}`);
     }
 }
 
@@ -105,6 +132,8 @@ function cloneNoteAfter(noteId, afterBranchId) {
         isExpanded: 0
     }).save();
 
+    log.info(`Cloned note ${noteId} into parent note ${afterNote.parentNoteId} after note ${afterNote.noteId}, branch ${afterBranchId}`);
+
     return { success: true, branchId: branch.branchId };
 }
 
@@ -115,7 +144,8 @@ function isNoteDeleted(noteId) {
 }
 
 module.exports = {
-    cloneNoteToParent,
+    cloneNoteToBranch,
+    cloneNoteToNote,
     ensureNoteIsPresentInParent,
     ensureNoteIsAbsentFromParent,
     toggleNoteInParent,

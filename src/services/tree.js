@@ -42,9 +42,12 @@ function validateParentChild(parentNoteId, childNoteId, branchId = null) {
     const existing = getExistingBranch(parentNoteId, childNoteId);
 
     if (existing && (branchId === null || existing.branchId !== branchId)) {
+        const parentNote = becca.getNote(parentNoteId);
+        const childNote = becca.getNote(childNoteId);
+
         return {
             success: false,
-            message: 'This note already exists in the target.'
+            message: `Note "${childNote.title}" note already exists in the "${parentNote.title}".`
         };
     }
 
@@ -59,7 +62,12 @@ function validateParentChild(parentNoteId, childNoteId, branchId = null) {
 }
 
 function getExistingBranch(parentNoteId, childNoteId) {
-    const branchId = sql.getValue('SELECT branchId FROM branches WHERE noteId = ? AND parentNoteId = ? AND isDeleted = 0', [childNoteId, parentNoteId]);
+    const branchId = sql.getValue(`
+        SELECT branchId 
+        FROM branches 
+        WHERE noteId = ? 
+          AND parentNoteId = ? 
+          AND isDeleted = 0`, [childNoteId, parentNoteId]);
 
     return becca.getBranch(branchId);
 }
@@ -144,10 +152,6 @@ function sortNotes(parentNoteId, customSortBy = 'title', reverse = false, folder
             const topAEl = fetchValue(a, 'top');
             const topBEl = fetchValue(b, 'top');
 
-            console.log(a.title, topAEl);
-            console.log(b.title, topBEl);
-            console.log("comp", compare(topAEl, topBEl) && !reverse);
-
             if (topAEl !== topBEl) {
                 // since "top" should not be reversible, we'll reverse it once more to nullify this effect
                 return compare(topAEl, topBEl) * (reverse ? -1 : 1);
@@ -173,7 +177,7 @@ function sortNotes(parentNoteId, customSortBy = 'title', reverse = false, folder
         let position = 10;
 
         for (const note of notes) {
-            const branch = note.getBranches().find(b => b.parentNoteId === parentNoteId);
+            const branch = note.getParentBranches().find(b => b.parentNoteId === parentNoteId);
 
             sql.execute("UPDATE branches SET notePosition = ? WHERE branchId = ?",
                 [position, branch.branchId]);
@@ -219,12 +223,15 @@ function setNoteToParent(noteId, prefix, parentNoteId) {
 
     if (branch) {
         if (!parentNoteId) {
+            log.info(`Removing note ${noteId} from parent ${parentNoteId}`);
+
             branch.markAsDeleted();
         }
         else {
-            branch.parentNoteId = parentNoteId;
-            branch.prefix = prefix;
-            branch.save();
+            const newBranch = branch.createClone(parentNoteId);
+            newBranch.save();
+
+            branch.markAsDeleted();
         }
     }
     else if (parentNoteId) {
