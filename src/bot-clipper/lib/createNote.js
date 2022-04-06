@@ -61,13 +61,7 @@ const processContent = async (images, note, content) => {
 }
 
 function getClipperInboxNote() {
-  let clipperInbox = attributeService.getNoteWithLabel('clipperInbox');
-
-  if (!clipperInbox) {
-    clipperInbox = dateNoteService.getDateNote(dateUtils.localNowDate());
-  }
-
-  return clipperInbox;
+  return attributeService.getNoteWithLabel('clipperInbox') || dateNoteService.getTodayNote();
 }
 
 module.exports = async (data) => {
