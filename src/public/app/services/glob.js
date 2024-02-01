@@ -1,21 +1,22 @@
 import utils from "./utils.js";
-import appContext from "./app_context.js";
+import appContext from "../components/app_context.js";
 import server from "./server.js";
 import libraryLoader from "./library_loader.js";
 import ws from "./ws.js";
 import froca from "./froca.js";
+import linkService from "./link.js";
 
 function setupGlobs() {
-    window.glob.PROFILING_LOG = false;
-
     window.glob.isDesktop = utils.isDesktop;
     window.glob.isMobile = utils.isMobile;
 
     window.glob.getComponentByEl = el => appContext.getComponentByEl(el);
     window.glob.getHeaders = server.getHeaders;
+    window.glob.getReferenceLinkTitle = href => linkService.getReferenceLinkTitle(href);
+    window.glob.getReferenceLinkTitleSync = href => linkService.getReferenceLinkTitleSync(href);
 
     // required for ESLint plugin and CKEditor
-    window.glob.getActiveTabNote = () => appContext.tabManager.getActiveContextNote();
+    window.glob.getActiveContextNote = () => appContext.tabManager.getActiveContextNote();
     window.glob.requireLibrary = libraryLoader.requireLibrary;
     window.glob.ESLINT = libraryLoader.ESLINT;
     window.glob.appContext = appContext; // for debugging
@@ -23,11 +24,7 @@ function setupGlobs() {
     window.glob.treeCache = froca; // compatibility for CKEditor builds for a while
 
     // for CKEditor integration (button on block toolbar)
-    window.glob.importMarkdownInline = async () => {
-        const dialog = await import("../dialogs/markdown_import.js");
-
-        dialog.importMarkdownInline();
-    };
+    window.glob.importMarkdownInline = async () => appContext.triggerCommand("importMarkdownInline");
 
     window.glob.SEARCH_HELP_TEXT = `
     <strong>Search tips</strong> - also see <button class="btn btn-sm" type="button" data-help-page="Search">complete help on search</button>
@@ -53,12 +50,12 @@ function setupGlobs() {
             message += 'No details available';
         } else {
             message += [
-                'Message: ' + msg,
-                'URL: ' + url,
-                'Line: ' + lineNo,
-                'Column: ' + columnNo,
-                'Error object: ' + JSON.stringify(error),
-                'Stack: ' + (error && error.stack)
+                `Message: ${msg}`,
+                `URL: ${url}`,
+                `Line: ${lineNo}`,
+                `Column: ${columnNo}`,
+                `Error object: ${JSON.stringify(error)}`,
+                `Stack: ${error && error.stack}`
             ].join(', ');
         }
 
@@ -68,7 +65,7 @@ function setupGlobs() {
     };
 
     for (const appCssNoteId of glob.appCssNoteIds || []) {
-        libraryLoader.requireCss(`api/notes/download/${appCssNoteId}`);
+        libraryLoader.requireCss(`api/notes/download/${appCssNoteId}`, false);
     }
 
     utils.initHelpButtons($(window));

@@ -1,24 +1,25 @@
 "use strict";
 
 const dayjs = require("dayjs");
-const AndExp = require('../expressions/and');
-const OrExp = require('../expressions/or');
-const NotExp = require('../expressions/not');
-const ChildOfExp = require('../expressions/child_of');
-const DescendantOfExp = require('../expressions/descendant_of');
-const ParentOfExp = require('../expressions/parent_of');
-const RelationWhereExp = require('../expressions/relation_where');
-const PropertyComparisonExp = require('../expressions/property_comparison');
-const AttributeExistsExp = require('../expressions/attribute_exists');
-const LabelComparisonExp = require('../expressions/label_comparison');
-const NoteFlatTextExp = require('../expressions/note_flat_text');
-const NoteContentProtectedFulltextExp = require('../expressions/note_content_protected_fulltext');
-const NoteContentUnprotectedFulltextExp = require('../expressions/note_content_unprotected_fulltext');
-const OrderByAndLimitExp = require('../expressions/order_by_and_limit');
-const AncestorExp = require("../expressions/ancestor");
-const buildComparator = require('./build_comparator');
-const ValueExtractor = require('../value_extractor');
-const utils = require("../../utils");
+const AndExp = require('../expressions/and.js');
+const OrExp = require('../expressions/or.js');
+const NotExp = require('../expressions/not.js');
+const ChildOfExp = require('../expressions/child_of.js');
+const DescendantOfExp = require('../expressions/descendant_of.js');
+const ParentOfExp = require('../expressions/parent_of.js');
+const RelationWhereExp = require('../expressions/relation_where.js');
+const PropertyComparisonExp = require('../expressions/property_comparison.js');
+const AttributeExistsExp = require('../expressions/attribute_exists.js');
+const LabelComparisonExp = require('../expressions/label_comparison.js');
+const NoteFlatTextExp = require('../expressions/note_flat_text.js');
+const NoteContentFulltextExp = require('../expressions/note_content_fulltext.js');
+const OrderByAndLimitExp = require('../expressions/order_by_and_limit.js');
+const AncestorExp = require('../expressions/ancestor.js');
+const buildComparator = require('./build_comparator.js');
+const ValueExtractor = require('../value_extractor.js');
+const utils = require('../../utils.js');
+const TrueExp = require('../expressions/true.js');
+const IsHiddenExp = require('../expressions/is_hidden.js');
 
 function getFulltext(tokens, searchContext) {
     tokens = tokens.map(t => utils.removeDiacritic(t.token));
@@ -32,8 +33,7 @@ function getFulltext(tokens, searchContext) {
     if (!searchContext.fastSearch) {
         return new OrExp([
             new NoteFlatTextExp(tokens),
-            new NoteContentProtectedFulltextExp('*=*', tokens),
-            new NoteContentUnprotectedFulltextExp('*=*', tokens)
+            new NoteContentFulltextExp('*=*', {tokens, flatText: true})
         ]);
     }
     else {
@@ -41,8 +41,25 @@ function getFulltext(tokens, searchContext) {
     }
 }
 
-function isOperator(str) {
-    return str.match(/^[!=<>*]+$/);
+const OPERATORS = [
+    "=",
+    "!=",
+    "*=*",
+    "*=",
+    "=*",
+    ">",
+    ">=",
+    "<",
+    "<=",
+    "%="
+];
+
+function isOperator(token) {
+    if (Array.isArray(token)) {
+        return false;
+    }
+
+    return OPERATORS.includes(token.token);
 }
 
 function getExpression(tokens, searchContext, level = 0) {
@@ -60,9 +77,7 @@ function getExpression(tokens, searchContext, level = 0) {
         startIndex = Math.max(0, startIndex - 20);
         endIndex = Math.min(searchContext.originalQuery.length, endIndex + 20);
 
-        return '"' + (startIndex !== 0 ? "..." : "")
-            + searchContext.originalQuery.substr(startIndex, endIndex - startIndex)
-            + (endIndex !== searchContext.originalQuery.length ? "..." : "") + '"';
+        return `"${startIndex !== 0 ? "..." : ""}${searchContext.originalQuery.substr(startIndex, endIndex - startIndex)}${endIndex !== searchContext.originalQuery.length ? "..." : ""}"`;
     }
 
     function resolveConstantOperand() {
@@ -112,7 +127,7 @@ function getExpression(tokens, searchContext, level = 0) {
             format = "YYYY";
         }
         else {
-            throw new Error("Unrecognized keyword: " + operand.token);
+            throw new Error(`Unrecognized keyword: ${operand.token}`);
         }
 
         return date.format(format);
@@ -131,19 +146,16 @@ function getExpression(tokens, searchContext, level = 0) {
 
             i += 1;
 
-            const operator = tokens[i].token;
+            const operator = tokens[i];
 
             if (!isOperator(operator)) {
-                searchContext.addError(`After content expected operator, but got "${tokens[i].token}" in ${context(i)}`);
+                searchContext.addError(`After content expected operator, but got "${operator.token}" in ${context(i)}`);
                 return;
             }
 
             i++;
 
-            return new OrExp([
-                new NoteContentUnprotectedFulltextExp(operator, [tokens[i].token], raw),
-                new NoteContentProtectedFulltextExp(operator, [tokens[i].token], raw)
-            ]);
+            return new NoteContentFulltextExp(operator.token, {tokens: [tokens[i].token], raw});
         }
 
         if (tokens[i].token === 'parents') {
@@ -196,8 +208,7 @@ function getExpression(tokens, searchContext, level = 0) {
 
             return new OrExp([
                 new PropertyComparisonExp(searchContext, 'title', '*=*', tokens[i].token),
-                new NoteContentProtectedFulltextExp('*=*', [tokens[i].token]),
-                new NoteContentUnprotectedFulltextExp('*=*', [tokens[i].token])
+                new NoteContentFulltextExp('*=*', {tokens: [tokens[i].token]})
             ]);
         }
 
@@ -234,7 +245,7 @@ function getExpression(tokens, searchContext, level = 0) {
     function parseLabel(labelName) {
         searchContext.highlightedTokens.push(labelName);
 
-        if (i < tokens.length - 2 && isOperator(tokens[i + 1].token)) {
+        if (i < tokens.length - 2 && isOperator(tokens[i + 1])) {
             let operator = tokens[i + 1].token;
 
             i += 2;
@@ -271,7 +282,7 @@ function getExpression(tokens, searchContext, level = 0) {
 
             return new RelationWhereExp(relationName, parseNoteProperty());
         }
-        else if (i < tokens.length - 2 && isOperator(tokens[i + 1].token)) {
+        else if (i < tokens.length - 2 && isOperator(tokens[i + 1])) {
             searchContext.addError(`Relation can be compared only with property, e.g. ~relation.title=hello in ${context(i)}`);
 
             return null;
@@ -378,7 +389,7 @@ function getExpression(tokens, searchContext, level = 0) {
         else if (token === 'note') {
             i++;
 
-            expressions.push(parseNoteProperty(tokens));
+            expressions.push(parseNoteProperty());
 
             continue;
         }
@@ -390,7 +401,7 @@ function getExpression(tokens, searchContext, level = 0) {
                 searchContext.addError('Mixed usage of AND/OR - always use parenthesis to group AND/OR expressions.');
             }
         }
-        else if (isOperator(token)) {
+        else if (isOperator({token: token})) {
             searchContext.addError(`Misplaced or incomplete expression "${token}"`);
         }
         else {
@@ -406,11 +417,22 @@ function getExpression(tokens, searchContext, level = 0) {
 }
 
 function parse({fulltextTokens, expressionTokens, searchContext}) {
+    let expression;
+
+    try {
+        expression = getExpression(expressionTokens, searchContext);
+    }
+    catch (e) {
+        searchContext.addError(e.message);
+
+        expression = new TrueExp();
+    }
+
     let exp = AndExp.of([
         searchContext.includeArchivedNotes ? null : new PropertyComparisonExp(searchContext, "isarchived", "=", "false"),
-        (searchContext.ancestorNoteId && searchContext.ancestorNoteId !== 'root') ? new AncestorExp(searchContext.ancestorNoteId, searchContext.ancestorDepth) : null,
+        getAncestorExp(searchContext),
         getFulltext(fulltextTokens, searchContext),
-        getExpression(expressionTokens, searchContext)
+        expression
     ]);
 
     if (searchContext.orderBy && searchContext.orderBy !== 'relevancy') {
@@ -425,6 +447,16 @@ function parse({fulltextTokens, expressionTokens, searchContext}) {
     }
 
     return exp;
+}
+
+function getAncestorExp({ancestorNoteId, ancestorDepth, includeHiddenNotes}) {
+    if (ancestorNoteId && ancestorNoteId !== 'root') {
+        return new AncestorExp(ancestorNoteId, ancestorDepth);
+    } else if (!includeHiddenNotes) {
+        return new NotExp(new IsHiddenExp());
+    } else {
+        return null;
+    }
 }
 
 module.exports = parse;

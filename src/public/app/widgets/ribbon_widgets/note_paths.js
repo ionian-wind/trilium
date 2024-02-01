@@ -44,10 +44,6 @@ export default class NotePathsWidget extends NoteContextAwareWidget {
         return "toggleRibbonTabNotePaths";
     }
 
-    isEnabled() {
-        return this.note;
-    }
-
     getTitle() {
         return {
             show: true,
@@ -76,7 +72,7 @@ export default class NotePathsWidget extends NoteContextAwareWidget {
             return;
         }
 
-        const sortedNotePaths = this.note.getSortedNotePaths(this.hoistedNoteId)
+        const sortedNotePaths = this.note.getSortedNotePathRecords(this.hoistedNoteId)
             .filter(notePath => !notePath.isHidden);
 
         if (sortedNotePaths.length > 0) {
@@ -100,7 +96,7 @@ export default class NotePathsWidget extends NoteContextAwareWidget {
     async getRenderedPath(notePath, notePathRecord = null) {
         const title = await treeService.getNotePathTitle(notePath);
 
-        const $noteLink = await linkService.createNoteLink(notePath, {title});
+        const $noteLink = await linkService.createLink(notePath, {title});
 
         $noteLink
             .find('a')
@@ -139,7 +135,7 @@ export default class NotePathsWidget extends NoteContextAwareWidget {
     }
 
     entitiesReloadedEvent({loadResults}) {
-        if (loadResults.getBranches().find(branch => branch.noteId === this.noteId)
+        if (loadResults.getBranchRows().find(branch => branch.noteId === this.noteId)
             || loadResults.isNoteReloaded(this.noteId)) {
 
             this.refresh();

@@ -1,4 +1,5 @@
-const noteTypes = require("../services/note_types");
+const noteTypeService = require('../services/note_types.js');
+const dateUtils = require('../services/date_utils.js');
 
 function mandatory(obj) {
     if (obj === undefined ) {
@@ -16,17 +17,33 @@ function isString(obj) {
     if (obj === undefined || obj === null) {
         return;
     }
-    
+
     if (typeof obj !== 'string') {
         return `'${obj}' is not a string`;
     }
+}
+
+function isLocalDateTime(obj) {
+    if (obj === undefined || obj === null) {
+        return;
+    }
+
+    return dateUtils.validateLocalDateTime(obj);
+}
+
+function isUtcDateTime(obj) {
+    if (obj === undefined || obj === null) {
+        return;
+    }
+
+    return dateUtils.validateUtcDateTime(obj);
 }
 
 function isBoolean(obj) {
     if (obj === undefined || obj === null) {
         return;
     }
-    
+
     if (typeof obj !== 'boolean') {
         return `'${obj}' is not a boolean`;
     }
@@ -36,7 +53,7 @@ function isInteger(obj) {
     if (obj === undefined || obj === null) {
         return;
     }
-    
+
     if (!Number.isInteger(obj)) {
         return `'${obj}' is not an integer`;
     }
@@ -46,13 +63,13 @@ function isNoteId(obj) {
     if (obj === undefined || obj === null) {
         return;
     }
-    
-    const becca = require('../becca/becca');
-    
+
+    const becca = require('../becca/becca.js');
+
     if (typeof obj !== 'string') {
         return `'${obj}' is not a valid noteId`;
     }
-    
+
     if (!(obj in becca.notes)) {
         return `Note '${obj}' does not exist`;
     }
@@ -63,8 +80,10 @@ function isNoteType(obj) {
         return;
     }
 
+    const noteTypes = noteTypeService.getNoteTypeNames();
+
     if (!noteTypes.includes(obj)) {
-        return `'${obj}' is not a valid note type, allowed types are: ` + noteTypes.join(", ");
+        return `'${obj}' is not a valid note type, allowed types are: ${noteTypes.join(", ")}`;
     }
 }
 
@@ -82,8 +101,8 @@ function isValidEntityId(obj) {
     if (obj === undefined || obj === null) {
         return;
     }
-    
-    if (typeof obj !== 'string' || !/^[A-Za-z0-9]{4,32}$/.test(obj)) {
+
+    if (typeof obj !== 'string' || !/^[A-Za-z0-9_]{4,128}$/.test(obj)) {
         return `'${obj}' is not a valid entityId. Only alphanumeric characters are allowed of length 4 to 32.`;
     }
 }
@@ -97,5 +116,7 @@ module.exports = {
     isNoteId,
     isNoteType,
     isAttributeType,
-    isValidEntityId
+    isValidEntityId,
+    isLocalDateTime,
+    isUtcDateTime
 };

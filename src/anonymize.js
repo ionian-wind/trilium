@@ -1,15 +1,15 @@
-const backupService = require('./services/backup');
-const sqlInit = require('./services/sql_init');
-require('./entities/entity_constructor');
+const anonymizationService = require('./services/anonymization.js');
+const sqlInit = require('./services/sql_init.js');
+require('./becca/entity_constructor.js');
 
 sqlInit.dbReady.then(async () => {
     try {
         console.log("Starting anonymization...");
 
-        const resp = await backupService.anonymize();
+        const resp = await anonymizationService.createAnonymizedCopy('full');
 
         if (resp.success) {
-            console.log("Anonymized file has been saved to: " + resp.anonymizedFilePath);
+            console.log(`Anonymized file has been saved to: ${resp.anonymizedFilePath}`);
 
             process.exit(0);
         } else {

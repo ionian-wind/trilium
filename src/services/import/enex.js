@@ -1,18 +1,24 @@
 const sax = require("sax");
 const stream = require('stream');
 const {Throttle} = require('stream-throttle');
-const log = require("../log");
-const utils = require("../utils");
-const sql = require("../sql");
-const noteService = require("../notes");
-const imageService = require("../image");
-const protectedSessionService = require('../protected_session');
-const htmlSanitizer = require("../html_sanitizer");
-const attributeService = require("../attributes");
+const log = require('../log.js');
+const utils = require('../utils.js');
+const sql = require('../sql.js');
+const noteService = require('../notes.js');
+const imageService = require('../image.js');
+const protectedSessionService = require('../protected_session.js');
+const htmlSanitizer = require('../html_sanitizer.js');
+const {sanitizeAttributeName} = require('../sanitize_attribute_name.js');
 
-// date format is e.g. 20181121T193703Z
+/**
+ * date format is e.g. 20181121T193703Z or 2013-04-14T16:19:00.000Z (Mac evernote, see #3496)
+ * @returns trilium date format, e.g. 2013-04-14 16:19:00.000Z
+ */
 function parseDate(text) {
-    // insert - and : to make it ISO format
+    // convert ISO format to the "20181121T193703Z" format
+    text = text.replace(/[-:]/g, "");
+
+    // insert - and : to convert it to trilium format
     text = text.substr(0, 4) + "-" + text.substr(4, 2) + "-" + text.substr(6, 2)
         + " " + text.substr(9, 2) + ":" + text.substr(11, 2) + ":" + text.substr(13, 2) + ".000Z";
 
@@ -70,8 +76,8 @@ function importEnex(taskContext, file, parentNote) {
         content = content.replace(/<\/ol>\s*<li>/g, "</ol></li><li>");
 
         // Replace en-todo with unicode ballot box
-        content = content.replace(/<en-todo\s+checked="true"\/>/g, "\u2611 ");
-        content = content.replace(/<en-todo(\s+checked="false")?\/>/g, "\u2610 ");
+        content = content.replace(/<en-todo\s+checked="true"\s*\/>/g, "\u2611 ");
+        content = content.replace(/<en-todo(\s+checked="false")?\s*\/>/g, "\u2610 ");
 
         // Replace OneNote converted checkboxes with unicode ballot box based
         // on known hash of checkboxes for regular, p1, and p2 checkboxes
@@ -99,9 +105,8 @@ function importEnex(taskContext, file, parentNote) {
     }
 
     saxStream.on("error", e => {
-        // unhandled errors will throw, since this is a proper node
-        // event emitter.
-        log.error("error when parsing ENEX file: " + e);
+        // unhandled errors will throw, since this is a proper node event emitter.
+        log.error(`error when parsing ENEX file: ${e}`);
         // clear the error
         this._parser.error = null;
         this._parser.resume();
@@ -115,10 +120,10 @@ function importEnex(taskContext, file, parentNote) {
             let labelName = currentTag;
 
             if (labelName === 'source-url') {
-                labelName = 'sourceUrl';
+                labelName = 'pageUrl';
             }
 
-            labelName = attributeService.sanitizeAttributeName(labelName);
+            labelName = sanitizeAttributeName(labelName);
 
             note.attributes.push({
                 type: 'label',
@@ -139,7 +144,7 @@ function importEnex(taskContext, file, parentNote) {
             else if (currentTag === 'source-url') {
                 resource.attributes.push({
                     type: 'label',
-                    name: 'sourceUrl',
+                    name: 'pageUrl',
                     value: text
                 });
             }
@@ -148,7 +153,10 @@ function importEnex(taskContext, file, parentNote) {
             if (currentTag === 'data') {
                 text = text.replace(/\s/g, '');
 
-                resource.content = utils.fromBase64(text);
+                // resource can be chunked into multiple events: https://github.com/zadam/trilium/issues/3424
+                // it would probably make sense to do this in a more global way since it can in theory affect any field,
+                // not just data
+                resource.content = (resource.content || "") + text;
             }
             else if (currentTag === 'mime') {
                 resource.mime = text.toLowerCase();
@@ -164,7 +172,7 @@ function importEnex(taskContext, file, parentNote) {
             } else if (currentTag === 'tag') {
                 note.attributes.push({
                     type: 'label',
-                    name: attributeService.sanitizeAttributeName(text),
+                    name: sanitizeAttributeName(text),
                     value: ''
                 })
             }
@@ -197,8 +205,8 @@ function importEnex(taskContext, file, parentNote) {
         }
     });
 
-    function updateDates(noteId, utcDateCreated, utcDateModified) {
-        // it's difficult to force custom dateCreated and dateModified to Note entity so we do it post-creation with SQL
+    function updateDates(note, utcDateCreated, utcDateModified) {
+        // it's difficult to force custom dateCreated and dateModified to Note entity, so we do it post-creation with SQL
         sql.execute(`
                 UPDATE notes 
                 SET dateCreated = ?, 
@@ -206,13 +214,13 @@ function importEnex(taskContext, file, parentNote) {
                     dateModified = ?,
                     utcDateModified = ?
                 WHERE noteId = ?`,
-            [utcDateCreated, utcDateCreated, utcDateModified, utcDateModified, noteId]);
+            [utcDateCreated, utcDateCreated, utcDateModified, utcDateModified, note.noteId]);
 
         sql.execute(`
-                UPDATE note_contents
+                UPDATE blobs
                 SET utcDateModified = ?
-                WHERE noteId = ?`,
-            [utcDateModified, noteId]);
+                WHERE blobId = ?`,
+            [utcDateModified, note.blobId]);
     }
 
     function saveNote() {
@@ -246,6 +254,8 @@ function importEnex(taskContext, file, parentNote) {
                 continue;
             }
 
+            resource.content = utils.fromBase64(resource.content);
+
             const hash = utils.md5(resource.content);
 
             // skip all checked/unchecked checkboxes from OneNote
@@ -258,7 +268,7 @@ function importEnex(taskContext, file, parentNote) {
                 continue;
             }
 
-            const mediaRegex = new RegExp(`<en-media hash="${hash}"[^>]*>`, 'g');
+            const mediaRegex = new RegExp(`<en-media [^>]*hash="${hash}"[^>]*>`, 'g');
 
             resource.mime = resource.mime || "application/octet-stream";
 
@@ -276,7 +286,7 @@ function importEnex(taskContext, file, parentNote) {
                     resourceNote.addAttribute(attr.type, attr.name, attr.value);
                 }
 
-                updateDates(resourceNote.noteId, utcDateCreated, utcDateModified);
+                updateDates(resourceNote, utcDateCreated, utcDateModified);
 
                 taskContext.increaseProgressCount();
 
@@ -291,27 +301,21 @@ function importEnex(taskContext, file, parentNote) {
                         ? resource.title
                         : `image.${resource.mime.substr(6)}`; // default if real name is not present
 
-                    const {url, note: imageNote} = imageService.saveImage(noteEntity.noteId, resource.content, originalName, taskContext.data.shrinkImages);
+                    const attachment = imageService.saveImageToAttachment(noteEntity.noteId, resource.content, originalName, taskContext.data.shrinkImages);
 
-                    for (const attr of resource.attributes) {
-                        if (attr.name !== 'originalFileName') { // this one is already saved in imageService
-                            imageNote.addAttribute(attr.type, attr.name, attr.value);
-                        }
-                    }
-
-                    updateDates(imageNote.noteId, utcDateCreated, utcDateModified);
-
+                    const encodedTitle = encodeURIComponent(attachment.title);
+                    const url = `api/attachments/${attachment.attachmentId}/image/${encodedTitle}`;
                     const imageLink = `<img src="${url}">`;
 
                     content = content.replace(mediaRegex, imageLink);
 
                     if (!content.includes(imageLink)) {
-                        // if there wasn't any match for the reference, we'll add the image anyway
-                        // otherwise image would be removed since no note would include it
+                        // if there wasn't any match for the reference, we'll add the image anyway,
+                        // otherwise the image would be removed since no note would include it
                         content += imageLink;
                     }
                 } catch (e) {
-                    log.error("error when saving image from ENEX file: " + e);
+                    log.error(`error when saving image from ENEX file: ${e.message}`);
                     createFileNote();
                 }
             } else {
@@ -324,9 +328,9 @@ function importEnex(taskContext, file, parentNote) {
         // save updated content with links to files/images
         noteEntity.setContent(content);
 
-        noteService.scanForLinks(noteEntity);
+        noteService.asyncPostProcessContent(noteEntity, content);
 
-        updateDates(noteEntity.noteId, utcDateCreated, utcDateModified);
+        updateDates(noteEntity, utcDateCreated, utcDateModified);
     }
 
     saxStream.on("closetag", tag => {

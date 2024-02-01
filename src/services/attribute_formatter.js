@@ -1,4 +1,4 @@
-"use strict"
+"use strict";
 
 function formatAttrForSearch(attr, searchWithValue) {
     let searchStr = '';
@@ -28,23 +28,23 @@ function formatAttrForSearch(attr, searchWithValue) {
 }
 
 function formatValue(val) {
-    if (!/[^\w_]/.test(val)) {
+    if (!/[^\w]/.test(val)) {
         return val;
     }
     else if (!val.includes('"')) {
-        return '"' + val + '"';
+        return `"${val}"`;
     }
     else if (!val.includes("'")) {
-        return "'" + val + "'";
+        return `'${val}'`;
     }
     else if (!val.includes("`")) {
-        return "`" + val + "`";
+        return `\`${val}\``;
     }
     else {
-        return '"' + val.replace(/"/g, '\\"') + '"';
+        return `"${val.replace(/"/g, '\\"')}"`;
     }
 }
 
 module.exports = {
     formatAttrForSearch
-}
+};

@@ -1,7 +1,7 @@
 /**
  * Fetch note with given ID from backend
  *
- * @param noteId of the given note to be fetched. If falsy, fetches current note.
+ * @param noteId of the given note to be fetched. If false, fetches current note.
  */
 async function fetchNote(noteId = null) {
     if (!noteId) {
@@ -17,5 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const toggleMenuButton = document.getElementById('toggleMenuButton');
     const layout = document.getElementById('layout');
 
-    toggleMenuButton.addEventListener('click', () => layout.classList.toggle('showMenu'));
+    if (toggleMenuButton && layout) {
+        toggleMenuButton.addEventListener('click', () => layout.classList.toggle('showMenu'));
+    }
 }, false);

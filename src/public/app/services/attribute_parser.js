@@ -67,7 +67,7 @@ function lex(str) {
                 finishWord(i - 1);
             }
             else {
-                // it's a quote but within other kind of quotes so it's valid as a literal character
+                // it's a quote, but within other kind of quotes, so it's valid as a literal character
                 currentWord += chr;
             }
             continue;
@@ -125,9 +125,7 @@ function parse(tokens, str, allowEmptyRelations = false) {
         startIndex = Math.max(0, startIndex - 20);
         endIndex = Math.min(str.length, endIndex + 20);
 
-        return '"' + (startIndex !== 0 ? "..." : "")
-            + str.substr(startIndex, endIndex - startIndex)
-            + (endIndex !== str.length ? "..." : "") + '"';
+        return `"${startIndex !== 0 ? "..." : ""}${str.substr(startIndex, endIndex - startIndex)}${endIndex !== str.length ? "..." : ""}"`;
     }
 
     for (let i = 0; i < tokens.length; i++) {

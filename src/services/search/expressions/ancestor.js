@@ -1,9 +1,9 @@
 "use strict";
 
-const Expression = require('./expression');
-const NoteSet = require('../note_set');
-const log = require('../../log');
-const becca = require('../../../becca/becca');
+const Expression = require('./expression.js');
+const NoteSet = require('../note_set.js');
+const log = require('../../log.js');
+const becca = require('../../../becca/becca.js');
 
 class AncestorExp extends Expression {
     constructor(ancestorNoteId, ancestorDepth) {
@@ -14,7 +14,7 @@ class AncestorExp extends Expression {
         this.ancestorDepthComparator = this.getComparator(ancestorDepth);
     }
 
-    execute(inputNoteSet, executionContext) {
+    execute(inputNoteSet, executionContext, searchContext) {
         const ancestorNote = becca.notes[this.ancestorNoteId];
 
         if (!ancestorNote) {
@@ -23,7 +23,9 @@ class AncestorExp extends Expression {
             return new NoteSet([]);
         }
 
-        const subTreeNoteSet = new NoteSet(ancestorNote.getSubtreeNotes()).intersection(inputNoteSet);
+        const subtree = ancestorNote.getSubtree();
+
+        const subTreeNoteSet = new NoteSet(subtree.notes).intersection(inputNoteSet);
 
         if (!this.ancestorDepthComparator) {
             return subTreeNoteSet;

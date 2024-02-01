@@ -1,6 +1,6 @@
 "use strict";
 
-const cloningService = require('../../services/cloning');
+const cloningService = require('../../services/cloning.js');
 
 function cloneNoteToBranch(req) {
     const {noteId, parentBranchId} = req.params;
@@ -9,11 +9,11 @@ function cloneNoteToBranch(req) {
     return cloningService.cloneNoteToBranch(noteId, parentBranchId, prefix);
 }
 
-function cloneNoteToNote(req) {
+function cloneNoteToParentNote(req) {
     const {noteId, parentNoteId} = req.params;
     const {prefix} = req.body;
 
-    return cloningService.cloneNoteToNote(noteId, parentNoteId, prefix);
+    return cloningService.cloneNoteToParentNote(noteId, parentNoteId, prefix);
 }
 
 function cloneNoteAfter(req) {
@@ -22,8 +22,15 @@ function cloneNoteAfter(req) {
     return cloningService.cloneNoteAfter(noteId, afterBranchId);
 }
 
+function toggleNoteInParent(req) {
+    const {noteId, parentNoteId, present} = req.params;
+
+    return cloningService.toggleNoteInParent(present === 'true', noteId, parentNoteId);
+}
+
 module.exports = {
     cloneNoteToBranch,
-    cloneNoteToNote,
-    cloneNoteAfter
+    cloneNoteToParentNote,
+    cloneNoteAfter,
+    toggleNoteInParent
 };

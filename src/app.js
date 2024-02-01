@@ -1,16 +1,14 @@
-const log = require('./services/log');
 const express = require('express');
 const path = require('path');
 const favicon = require('serve-favicon');
 const cookieParser = require('cookie-parser');
 const helmet = require('helmet');
-const session = require('express-session');
-const FileStore = require('session-file-store')(session);
-const sessionSecret = require('./services/session_secret');
-const dataDir = require('./services/data_dir');
-const utils = require('./services/utils');
-require('./services/handlers');
-require('./becca/becca_loader');
+const compression = require('compression');
+const sessionParser = require('./routes/session_parser.js');
+const utils = require('./services/utils.js');
+
+require('./services/handlers.js');
+require('./becca/becca_loader.js');
 
 const app = express();
 
@@ -18,9 +16,14 @@ const app = express();
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
 
+if (!utils.isElectron()) {
+    app.use(compression()); // HTTP compression
+}
+
 app.use(helmet({
     hidePoweredBy: false, // errors out in electron
-    contentSecurityPolicy: false
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false
 }));
 
 app.use(express.text({limit: '500mb'}));
@@ -28,85 +31,30 @@ app.use(express.json({limit: '500mb'}));
 app.use(express.raw({limit: '500mb'}));
 app.use(express.urlencoded({extended: false}));
 app.use(cookieParser());
-app.use(express.static(path.join(__dirname, 'public')));
-app.use('/libraries', express.static(path.join(__dirname, '..', 'libraries')));
-app.use('/images', express.static(path.join(__dirname, '..', 'images')));
-const sessionParser = session({
-    secret: sessionSecret,
-    resave: false, // true forces the session to be saved back to the session store, even if the session was never modified during the request.
-    saveUninitialized: false, // true forces a session that is "uninitialized" to be saved to the store. A session is uninitialized when it is new but not modified.
-    cookie: {
-        //    path: "/",
-        httpOnly: true,
-        maxAge:  24 * 60 * 60 * 1000 // in milliseconds
-    },
-    name: 'trilium.sid',
-    store: new FileStore({
-        ttl: 30 * 24 * 3600,
-        path: dataDir.TRILIUM_DATA_DIR + '/sessions'
-    })
-});
+app.use(express.static(path.join(__dirname, 'public/root')));
+app.use(`/manifest.webmanifest`, express.static(path.join(__dirname, 'public/manifest.webmanifest')));
+app.use(`/robots.txt`, express.static(path.join(__dirname, 'public/robots.txt')));
 app.use(sessionParser);
+app.use(favicon(`${__dirname}/../images/app-icons/win/icon.ico`));
 
-app.use(favicon(__dirname + '/../images/app-icons/win/icon.ico'));
-
-require('./routes/routes').register(app);
-
-require('./routes/custom').register(app);
-
-app.use((err, req, res, next) => {
-    if (err.code !== 'EBADCSRFTOKEN') {
-        return next(err);
-    }
-
-    log.error(`Invalid CSRF token: ${req.headers['x-csrf-token']}, secret: ${req.cookies['_csrf']}`);
-
-    err = new Error('Invalid CSRF token');
-    err.status = 403;
-    next(err);
-});
-
-// catch 404 and forward to error handler
-app.use((req, res, next) => {
-    const err = new Error('Router not found for request ' + req.url);
-    err.status = 404;
-    next(err);
-});
-
-// error handler
-app.use((err, req, res, next) => {
-    if (err && err.message && (
-        (err.message.includes("Router not found for request") && err.message.includes(".js.map"))
-        || (err.message.includes("Router not found for request") && err.message.includes(".css.map"))
-    )) {
-        // ignore
-    }
-    else {
-        log.info(err);
-    }
-
-    res.status(err.status || 500);
-    res.send({
-        message: err.message
-    });
-});
+require('./routes/assets.js').register(app);
+require('./routes/routes.js').register(app);
+require('./routes/custom.js').register(app);
+require('./routes/error_handlers.js').register(app);
 
 // triggers sync timer
-require('./services/sync');
+require('./services/sync.js');
 
 // triggers backup timer
-require('./services/backup');
+require('./services/backup.js');
 
 // trigger consistency checks timer
-require('./services/consistency_checks');
+require('./services/consistency_checks.js');
 
-require('./services/scheduler');
+require('./services/scheduler.js');
 
 if (utils.isElectron()) {
     require('@electron/remote/main').initialize();
 }
 
-module.exports = {
-    app,
-    sessionParser
-};
+module.exports = app;

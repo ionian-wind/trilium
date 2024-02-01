@@ -1,22 +1,33 @@
 "use strict";
 
-const utils = require('../services/utils');
-const optionService = require('../services/options');
-const myScryptService = require('../services/my_scrypt');
-const log = require('../services/log');
-const passwordService = require("../services/password");
+const utils = require('../services/utils.js');
+const optionService = require('../services/options.js');
+const myScryptService = require('../services/encryption/my_scrypt.js');
+const log = require('../services/log.js');
+const passwordService = require('../services/encryption/password.js');
+const assetPath = require('../services/asset_path.js');
+const appPath = require('../services/app_path.js');
+const ValidationError = require('../errors/validation_error.js');
 
 function loginPage(req, res) {
-    res.render('login', { failedAuth: false });
+    res.render('login', {
+        failedAuth: false,
+        assetPath: assetPath,
+        appPath: appPath
+    });
 }
 
 function setPasswordPage(req, res) {
-    res.render('set_password', { error: false });
+    res.render('set_password', {
+        error: false,
+        assetPath: assetPath,
+        appPath: appPath
+    });
 }
 
 function setPassword(req, res) {
     if (passwordService.isPasswordSet()) {
-        return [400, "Password has been already set"];
+        throw new ValidationError("Password has been already set");
     }
 
     let {password1, password2} = req.body;
@@ -32,7 +43,10 @@ function setPassword(req, res) {
     }
 
     if (error) {
-        res.render('set_password', { error });
+        res.render('set_password', {
+            error,
+            assetPath: assetPath
+        });
         return;
     }
 
@@ -45,7 +59,7 @@ function login(req, res) {
     const guessedPassword = req.body.password;
 
     if (verifyPassword(guessedPassword)) {
-        const rememberMe = req.body.remember_me;
+        const rememberMe = req.body.rememberMe;
 
         req.session.regenerate(() => {
             if (rememberMe) {
@@ -62,7 +76,10 @@ function login(req, res) {
         // note that logged IP address is usually meaningless since the traffic should come from a reverse proxy
         log.info(`WARNING: Wrong password from ${req.ip}, rejecting.`);
 
-        res.render('login', {'failedAuth': true});
+        res.status(401).render('login', {
+            failedAuth: true,
+            assetPath: assetPath
+        });
     }
 }
 

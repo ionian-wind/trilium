@@ -1,17 +1,17 @@
 "use strict";
 
-const searchService = require('./search/services/search');
-const sql = require('./sql');
-const becca = require('../becca/becca');
-const Attribute = require('../becca/entities/attribute');
-const {formatAttrForSearch} = require("./attribute_formatter");
-const BUILTIN_ATTRIBUTES = require("./builtin_attributes");
+const searchService = require('./search/services/search.js');
+const sql = require('./sql.js');
+const becca = require('../becca/becca.js');
+const BAttribute = require('../becca/entities/battribute.js');
+const {formatAttrForSearch} = require('./attribute_formatter.js');
+const BUILTIN_ATTRIBUTES = require('./builtin_attributes.js');
 
-const ATTRIBUTE_TYPES = [ 'label', 'relation' ];
+const ATTRIBUTE_TYPES = ['label', 'relation'];
 
-/** @returns {Note[]} */
-function getNotesWithLabel(name, value) {
-    const query = formatAttrForSearch({type: 'label', name, value}, true);
+/** @returns {BNote[]} */
+function getNotesWithLabel(name, value = undefined) {
+    const query = formatAttrForSearch({type: 'label', name, value}, value !== undefined);
     return searchService.searchNotes(query, {
         includeArchivedNotes: true,
         ignoreHoistedNote: true
@@ -19,9 +19,9 @@ function getNotesWithLabel(name, value) {
 }
 
 // TODO: should be in search service
-/** @returns {Note|null} */
+/** @returns {BNote|null} */
 function getNoteWithLabel(name, value = undefined) {
-    // optimized version (~20 times faster) without using normal search, useful for e.g. finding date notes
+    // optimized version (~20 times faster) without using normal search, useful for e.g., finding date notes
     const attrs = becca.findAttributes('label', name);
 
     if (value === undefined) {
@@ -37,24 +37,6 @@ function getNoteWithLabel(name, value = undefined) {
     }
 
     return null;
-}
-
-/**
- * Does not take into account templates and inheritance
- */
-function getNotesWithLabelFast(name, value) {
-    // optimized version (~20 times faster) without using normal search, useful for e.g. finding date notes
-    const attrs = becca.findAttributes('label', name);
-
-    if (value === undefined) {
-        return attrs.map(attr => attr.getNote());
-    }
-
-    value = value?.toLowerCase();
-
-    return attrs
-        .filter(attr => attr.value.toLowerCase() === value)
-        .map(attr => attr.getNote());
 }
 
 function createLabel(noteId, name, value = "") {
@@ -76,7 +58,7 @@ function createRelation(noteId, name, targetNoteId) {
 }
 
 function createAttribute(attribute) {
-    return new Attribute(attribute).save();
+    return new BAttribute(attribute).save();
 }
 
 function getAttributeNames(type, nameLike) {
@@ -87,7 +69,7 @@ function getAttributeNames(type, nameLike) {
              FROM attributes 
              WHERE isDeleted = 0
                AND type = ?
-               AND name LIKE ?`, [type, '%' + nameLike + '%']);
+               AND name LIKE ?`, [type, `%${nameLike}%`]);
 
     for (const attr of BUILTIN_ATTRIBUTES) {
         if (attr.type === type && attr.name.toLowerCase().includes(nameLike) && !names.includes(attr.name)) {
@@ -122,35 +104,19 @@ function isAttributeType(type) {
 
 function isAttributeDangerous(type, name) {
     return BUILTIN_ATTRIBUTES.some(attr =>
-        attr.type === attr.type &&
+        attr.type === type &&
         attr.name.toLowerCase() === name.trim().toLowerCase() &&
         attr.isDangerous
     );
 }
 
-function sanitizeAttributeName(origName) {
-    let fixedName;
-
-    if (origName === '') {
-        fixedName = "unnamed";
-    }
-    else {
-        // any not allowed character should be replaced with underscore
-        fixedName = origName.replace(/[^\p{L}\p{N}_:]/ug, "_");
-    }
-
-    return fixedName;
-}
-
 module.exports = {
     getNotesWithLabel,
-    getNotesWithLabelFast,
     getNoteWithLabel,
     createLabel,
     createRelation,
     createAttribute,
     getAttributeNames,
     isAttributeType,
-    isAttributeDangerous,
-    sanitizeAttributeName
+    isAttributeDangerous
 };

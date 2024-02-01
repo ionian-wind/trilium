@@ -1,8 +1,8 @@
-const becca = require("../becca/becca");
-const eu = require("./etapi_utils");
-const mappers = require("./mappers");
-const attributeService = require("../services/attributes");
-const v = require("./validators");
+const becca = require('../becca/becca.js');
+const eu = require('./etapi_utils.js');
+const mappers = require('./mappers.js');
+const attributeService = require('../services/attributes.js');
+const v = require('./validators.js');
 
 function register(router) {
     eu.route(router, 'get', '/etapi/attributes/:attributeId', (req, res, next) => {
@@ -17,7 +17,8 @@ function register(router) {
         'type': [v.mandatory, v.notNull, v.isAttributeType],
         'name': [v.mandatory, v.notNull, v.isString],
         'value': [v.notNull, v.isString],
-        'isInheritable': [v.notNull, v.isBoolean]
+        'isInheritable': [v.notNull, v.isBoolean],
+        'position': [v.notNull, v.isInteger]
     };
 
     eu.route(router, 'post' ,'/etapi/attributes', (req, res, next) => {
@@ -39,18 +40,25 @@ function register(router) {
         }
     });
 
-    const ALLOWED_PROPERTIES_FOR_PATCH = {
-        'value': [v.notNull, v.isString]
+    const ALLOWED_PROPERTIES_FOR_PATCH_LABEL = {
+        'value': [v.notNull, v.isString],
+        'position': [v.notNull, v.isInteger]
+    };
+
+    const ALLOWED_PROPERTIES_FOR_PATCH_RELATION = {
+        'position': [v.notNull, v.isInteger]
     };
 
     eu.route(router, 'patch' ,'/etapi/attributes/:attributeId', (req, res, next) => {
         const attribute = eu.getAndCheckAttribute(req.params.attributeId);
 
-        if (attribute.type === 'relation') {
+        if (attribute.type === 'label') {
+            eu.validateAndPatch(attribute, req.body, ALLOWED_PROPERTIES_FOR_PATCH_LABEL);
+        } else if (attribute.type === 'relation') {
             eu.getAndCheckNote(req.body.value);
-        }
 
-        eu.validateAndPatch(attribute, req.body, ALLOWED_PROPERTIES_FOR_PATCH);
+            eu.validateAndPatch(attribute, req.body, ALLOWED_PROPERTIES_FOR_PATCH_RELATION);
+        }
 
         attribute.save();
 
@@ -60,7 +68,7 @@ function register(router) {
     eu.route(router, 'delete' ,'/etapi/attributes/:attributeId', (req, res, next) => {
         const attribute = becca.getAttribute(req.params.attributeId);
 
-        if (!attribute || attribute.isDeleted) {
+        if (!attribute) {
             return res.sendStatus(204);
         }
 

@@ -1,11 +1,11 @@
 "use strict";
 
-const beccaService = require('../../becca/becca_service');
-const searchService = require('../../services/search/services/search');
-const log = require('../../services/log');
-const utils = require('../../services/utils');
-const cls = require('../../services/cls');
-const becca = require("../../becca/becca");
+const beccaService = require('../../becca/becca_service.js');
+const searchService = require('../../services/search/services/search.js');
+const log = require('../../services/log.js');
+const utils = require('../../services/utils.js');
+const cls = require('../../services/cls.js');
+const becca = require('../../becca/becca.js');
 
 function getAutocomplete(req) {
     const query = req.query.query.trim();
@@ -38,7 +38,7 @@ function getRecentNotes(activeNoteId) {
     const hoistedNoteId = cls.getHoistedNoteId();
     if (hoistedNoteId !== 'root') {
         extraCondition = `AND recent_notes.notePath LIKE ?`;
-        params.push('%' + hoistedNoteId + '%');
+        params.push(`%${hoistedNoteId}%`);
     }
 
     const recentNotes = becca.getRecentNotesFromQuery(`

@@ -1,9 +1,9 @@
 function reloadFrontendApp(reason) {
     if (reason) {
-        logInfo("Frontend app reload: " + reason);
+        logInfo(`Frontend app reload: ${reason}`);
     }
 
-    window.location.reload(true);
+    window.location.reload();
 }
 
 function parseDate(str) {
@@ -11,25 +11,58 @@ function parseDate(str) {
         return new Date(Date.parse(str));
     }
     catch (e) {
-        throw new Error("Can't parse date from " + str + ": " + e.stack);
+        throw new Error(`Can't parse date from '${str}': ${e.message} ${e.stack}`);
     }
 }
 
 function padNum(num) {
-    return (num <= 9 ? "0" : "") + num;
+    return `${num <= 9 ? "0" : ""}${num}`;
 }
 
 function formatTime(date) {
-    return padNum(date.getHours()) + ":" + padNum(date.getMinutes());
+    return `${padNum(date.getHours())}:${padNum(date.getMinutes())}`;
 }
 
 function formatTimeWithSeconds(date) {
-    return padNum(date.getHours()) + ":" + padNum(date.getMinutes()) + ":" + padNum(date.getSeconds());
+    return `${padNum(date.getHours())}:${padNum(date.getMinutes())}:${padNum(date.getSeconds())}`;
+}
+
+function formatTimeInterval(ms) {
+    const seconds = Math.round(ms / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    const plural = (count, name) => `${count} ${name}${count > 1 ? 's' : ''}`;
+    const segments = [];
+
+    if (days > 0) {
+        segments.push(plural(days, 'day'));
+    }
+
+    if (days < 2) {
+        if (hours % 24 > 0) {
+            segments.push(plural(hours % 24, 'hour'));
+        }
+
+        if (hours < 4) {
+            if (minutes % 60 > 0) {
+                segments.push(plural(minutes % 60, 'minute'));
+            }
+
+            if (minutes < 5) {
+                if (seconds % 60 > 0) {
+                    segments.push(plural(seconds % 60, 'second'));
+                }
+            }
+        }
+    }
+
+    return segments.join(", ");
 }
 
 // this is producing local time!
 function formatDate(date) {
-//    return padNum(date.getDate()) + ". " + padNum(date.getMonth() + 1) + ". " + date.getFullYear();
+    //    return padNum(date.getDate()) + ". " + padNum(date.getMonth() + 1) + ". " + date.getFullYear();
     // instead of european format we'll just use ISO as that's pretty unambiguous
 
     return formatDateISO(date);
@@ -37,15 +70,15 @@ function formatDate(date) {
 
 // this is producing local time!
 function formatDateISO(date) {
-    return date.getFullYear() + "-" + padNum(date.getMonth() + 1) + "-" + padNum(date.getDate());
+    return `${date.getFullYear()}-${padNum(date.getMonth() + 1)}-${padNum(date.getDate())}`;
 }
 
 function formatDateTime(date) {
-    return formatDate(date) + " " + formatTime(date);
+    return `${formatDate(date)} ${formatTime(date)}`;
 }
 
 function localNowDateTime() {
-    return dayjs().format('YYYY-MM-DD HH:mm:ss.SSSZZ')
+    return dayjs().format('YYYY-MM-DD HH:mm:ss.SSSZZ');
 }
 
 function now() {
@@ -58,6 +91,11 @@ function isElectron() {
 
 function isMac() {
     return navigator.platform.indexOf('Mac') > -1;
+}
+
+function isCtrlKey(evt) {
+    return (!isMac() && evt.ctrlKey)
+        || (isMac() && evt.metaKey);
 }
 
 function assertArguments() {
@@ -83,30 +121,15 @@ function escapeHtml(str) {
     return str.replace(/[&<>"'`=\/]/g, s => entityMap[s]);
 }
 
-async function stopWatch(what, func) {
-    const start = new Date();
+function formatSize(size) {
+    size = Math.max(Math.round(size / 1024), 1);
 
-    const ret = await func();
-
-    const tookMs = Date.now() - start.getTime();
-
-    console.log(`${what} took ${tookMs}ms`);
-
-    return ret;
-}
-
-function formatValueWithWhitespace(val) {
-    return /[^\w_-]/.test(val) ? '"' + val + '"' : val;
-}
-
-function formatLabel(label) {
-    let str = "#" + formatValueWithWhitespace(label.name);
-
-    if (label.value !== "") {
-        str += "=" + formatValueWithWhitespace(label.value);
+    if (size < 1024) {
+        return `${size} KiB`;
     }
-
-    return str;
+    else {
+        return `${Math.round(size / 102.4) / 10} MiB`;
+    }
 }
 
 function toObject(array, fn) {
@@ -132,68 +155,30 @@ function randomString(len) {
     return text;
 }
 
-function bindGlobalShortcut(keyboardShortcut, handler) {
-    bindElShortcut($(document), keyboardShortcut, handler);
-}
-
-function bindElShortcut($el, keyboardShortcut, handler) {
-    if (isDesktop()) {
-        keyboardShortcut = normalizeShortcut(keyboardShortcut);
-
-        $el.bind('keydown', keyboardShortcut, e => {
-            handler(e);
-
-            e.preventDefault();
-            e.stopPropagation();
-        });
-    }
-}
-
-/**
- * Normalize to the form expected by the jquery.hotkeys.js
- */
-function normalizeShortcut(shortcut) {
-    return shortcut
-        .toLowerCase()
-        .replace("enter", "return")
-        .replace("delete", "del")
-        .replace("ctrl+alt", "alt+ctrl")
-        .replace("meta+alt", "alt+meta"); // alt needs to be first;
-}
-
 function isMobile() {
-    return window.device === "mobile"
-        // window.device is not available in setup
-        || (!window.device && /Mobi/.test(navigator.userAgent));
+    return window.glob?.device === "mobile"
+        // window.glob.device is not available in setup
+        || (!window.glob?.device && /Mobi/.test(navigator.userAgent));
 }
 
 function isDesktop() {
-    return window.device === "desktop"
-        // window.device is not available in setup
-        || (!window.device && !/Mobi/.test(navigator.userAgent));
+    return window.glob?.device === "desktop"
+        // window.glob.device is not available in setup
+        || (!window.glob?.device && !/Mobi/.test(navigator.userAgent));
 }
 
-// cookie code below works for simple use cases only - ASCII only
-// not setting path so that cookies do not leak into other websites if multiplexed with reverse proxy
+// the cookie code below works for simple use cases only - ASCII only
+// not setting a path so that cookies do not leak into other websites if multiplexed with reverse proxy
 
 function setCookie(name, value) {
     const date = new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000);
-    const expires = "; expires=" + date.toUTCString();
+    const expires = `; expires=${date.toUTCString()}`;
 
-    document.cookie = name + "=" + (value || "")  + expires + ";";
-}
-
-function setSessionCookie(name, value) {
-    document.cookie = name + "=" + (value || "") + "; SameSite=Strict";
-}
-
-function getCookie(name) {
-    const valueMatch = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
-    return valueMatch ? valueMatch[2] : null;
+    document.cookie = `${name}=${value || ""}${expires};`;
 }
 
 function getNoteTypeClass(type) {
-    return "type-" + type;
+    return `type-${type}`;
 }
 
 function getMimeTypeClass(mime) {
@@ -208,7 +193,7 @@ function getMimeTypeClass(mime) {
         mime = mime.substr(0, semicolonIdx);
     }
 
-    return 'mime-' + mime.toLowerCase().replace(/[\W_]+/g,"-");
+    return `mime-${mime.toLowerCase().replace(/[\W_]+/g, "-")}`;
 }
 
 function closeActiveDialog() {
@@ -232,12 +217,17 @@ function focusSavedElement() {
 
     if ($lastFocusedElement.hasClass("ck")) {
         // must handle CKEditor separately because of this bug: https://github.com/ckeditor/ckeditor5/issues/607
+        // the bug manifests itself in resetting the cursor position to the first character - jumping above
 
         const editor = $lastFocusedElement
             .closest('.ck-editor__editable')
             .prop('ckeditorInstance');
 
-        editor.editing.view.focus();
+        if (editor) {
+            editor.editing.view.focus();
+        } else {
+            console.log("Could not find CKEditor instance to focus last element");
+        }
     } else {
         $lastFocusedElement.focus();
     }
@@ -256,6 +246,8 @@ async function openDialog($dialog, closeActDialog = true) {
     $dialog.modal();
 
     $dialog.on('hidden.bs.modal', () => {
+        $(".aa-input").autocomplete("close");
+
         if (!glob.activeDialog || glob.activeDialog === $dialog) {
             focusSavedElement();
         }
@@ -268,19 +260,22 @@ async function openDialog($dialog, closeActDialog = true) {
 function isHtmlEmpty(html) {
     if (!html) {
         return true;
+    } else if (typeof html !== 'string') {
+        logError(`Got object of type '${typeof html}' where string was expected.`);
+        return false;
     }
 
     html = html.toLowerCase();
 
     return !html.includes('<img')
         && !html.includes('<section')
-        // line below will actually attempt to load images so better to check for images first
+        // the line below will actually attempt to load images so better to check for images first
         && $("<div>").html(html).text().trim().length === 0;
 }
 
 async function clearBrowserCache() {
     if (isElectron()) {
-        const win = utils.dynamicRequire('@electron/remote').getCurrentWindow();
+        const win = dynamicRequire('@electron/remote').getCurrentWindow();
         await win.webContents.session.clearCache();
     }
 }
@@ -290,10 +285,6 @@ function copySelectionToClipboard() {
     if (navigator.clipboard) {
         navigator.clipboard.writeText(text);
     }
-}
-
-function isCKEditorInitialized() {
-    return !!(window && window.cutToNote);
 }
 
 function dynamicRequire(moduleName) {
@@ -335,18 +326,29 @@ function initHelpDropdown($el) {
     const $dropdownMenu = $el.find('.help-dropdown .dropdown-menu');
     $dropdownMenu.on('click', e => e.stopPropagation());
 
-    // previous propagation stop will also block help buttons from being opened so we need to re-init for this element
+    // previous propagation stop will also block help buttons from being opened, so we need to re-init for this element
     initHelpButtons($dropdownMenu);
 }
 
-const wikiBaseUrl = "https://github.com/zadam/trilium/wiki/"
+const wikiBaseUrl = "https://github.com/zadam/trilium/wiki/";
 
-function openHelp(e) {
-    window.open(wikiBaseUrl + $(e.target).attr("data-help-page"), '_blank');
+function openHelp($button) {
+    const helpPage = $button.attr("data-help-page");
+
+    if (helpPage) {
+        const url = wikiBaseUrl + helpPage;
+
+        window.open(url, '_blank');
+    }
 }
 
 function initHelpButtons($el) {
-    $el.on("click", "*[data-help-page]", e => openHelp(e));
+    // for some reason, the .on(event, listener, handler) does not work here (e.g. Options -> Sync -> Help button)
+    // so we do it manually
+    $el.on("click", e => {
+        const $helpButton = $(e.target).closest("[data-help-page]");
+        openHelp($helpButton);
+    });
 }
 
 function filterAttributeName(name) {
@@ -359,32 +361,167 @@ function isValidAttributeName(name) {
     return ATTR_NAME_MATCHER.test(name);
 }
 
+function sleep(time_ms) {
+    return new Promise((resolve) => {
+        setTimeout(resolve, time_ms);
+    });
+}
+
+function escapeRegExp(str) {
+    return str.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, "\\$1");
+}
+
+function areObjectsEqual () {
+    let i, l, leftChain, rightChain;
+
+    function compare2Objects (x, y) {
+        let p;
+
+        // remember that NaN === NaN returns false
+        // and isNaN(undefined) returns true
+        if (isNaN(x) && isNaN(y) && typeof x === 'number' && typeof y === 'number') {
+            return true;
+        }
+
+        // Compare primitives and functions.
+        // Check if both arguments link to the same object.
+        // Especially useful on the step where we compare prototypes
+        if (x === y) {
+            return true;
+        }
+
+        // Works in case when functions are created in constructor.
+        // Comparing dates is a common scenario. Another built-ins?
+        // We can even handle functions passed across iframes
+        if ((typeof x === 'function' && typeof y === 'function') ||
+            (x instanceof Date && y instanceof Date) ||
+            (x instanceof RegExp && y instanceof RegExp) ||
+            (x instanceof String && y instanceof String) ||
+            (x instanceof Number && y instanceof Number)) {
+            return x.toString() === y.toString();
+        }
+
+        // At last, checking prototypes as good as we can
+        if (!(x instanceof Object && y instanceof Object)) {
+            return false;
+        }
+
+        if (x.isPrototypeOf(y) || y.isPrototypeOf(x)) {
+            return false;
+        }
+
+        if (x.constructor !== y.constructor) {
+            return false;
+        }
+
+        if (x.prototype !== y.prototype) {
+            return false;
+        }
+
+        // Check for infinitive linking loops
+        if (leftChain.indexOf(x) > -1 || rightChain.indexOf(y) > -1) {
+            return false;
+        }
+
+        // Quick checking of one object being a subset of another.
+        // todo: cache the structure of arguments[0] for performance
+        for (p in y) {
+            if (y.hasOwnProperty(p) !== x.hasOwnProperty(p)) {
+                return false;
+            }
+            else if (typeof y[p] !== typeof x[p]) {
+                return false;
+            }
+        }
+
+        for (p in x) {
+            if (y.hasOwnProperty(p) !== x.hasOwnProperty(p)) {
+                return false;
+            }
+            else if (typeof y[p] !== typeof x[p]) {
+                return false;
+            }
+
+            switch (typeof (x[p])) {
+                case 'object':
+                case 'function':
+
+                    leftChain.push(x);
+                    rightChain.push(y);
+
+                    if (!compare2Objects (x[p], y[p])) {
+                        return false;
+                    }
+
+                    leftChain.pop();
+                    rightChain.pop();
+                    break;
+
+                default:
+                    if (x[p] !== y[p]) {
+                        return false;
+                    }
+                    break;
+            }
+        }
+
+        return true;
+    }
+
+    if (arguments.length < 1) {
+        return true; //Die silently? Don't know how to handle such case, please help...
+        // throw "Need two or more arguments to compare";
+    }
+
+    for (i = 1, l = arguments.length; i < l; i++) {
+
+        leftChain = []; //Todo: this can be cached
+        rightChain = [];
+
+        if (!compare2Objects(arguments[0], arguments[i])) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+function copyHtmlToClipboard(content) {
+    const clipboardItem = new ClipboardItem({
+        'text/html': new Blob([content], {type: 'text/html'}),
+        'text/plain': new Blob([content], {type: 'text/plain'})
+    });
+
+    navigator.clipboard.write([clipboardItem]);
+}
+
+/**
+ * @param {FNote} note
+ * @return {string}
+ */
+function createImageSrcUrl(note) {
+    return `api/images/${note.noteId}/${encodeURIComponent(note.title)}?timestamp=${Date.now()}`;
+}
+
 export default {
     reloadFrontendApp,
     parseDate,
-    padNum,
-    formatTime,
-    formatTimeWithSeconds,
-    formatDate,
     formatDateISO,
     formatDateTime,
+    formatTimeInterval,
+    formatSize,
     localNowDateTime,
     now,
     isElectron,
     isMac,
+    isCtrlKey,
     assertArguments,
     escapeHtml,
-    stopWatch,
-    formatLabel,
     toObject,
     randomString,
-    bindGlobalShortcut,
-    bindElShortcut,
     isMobile,
     isDesktop,
     setCookie,
-    setSessionCookie,
-    getCookie,
     getNoteTypeClass,
     getMimeTypeClass,
     closeActiveDialog,
@@ -393,14 +530,17 @@ export default {
     focusSavedElement,
     isHtmlEmpty,
     clearBrowserCache,
-    normalizeShortcut,
     copySelectionToClipboard,
-    isCKEditorInitialized,
     dynamicRequire,
     timeLimit,
     initHelpDropdown,
     initHelpButtons,
     openHelp,
     filterAttributeName,
-    isValidAttributeName
+    isValidAttributeName,
+    sleep,
+    escapeRegExp,
+    areObjectsEqual,
+    copyHtmlToClipboard,
+    createImageSrcUrl
 };

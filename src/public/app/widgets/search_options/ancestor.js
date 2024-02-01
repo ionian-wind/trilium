@@ -13,7 +13,7 @@ const TPL = `
             <div style="margin-left: 10px; margin-right: 10px">depth:</div>
             
             <select name="depth" class="form-control d-inline ancestor-depth" style="flex-shrink: 3">
-                <option value="">doesn't mattter</option>
+                <option value="">doesn't matter</option>
                 <option value="eq1">is exactly 1 (direct children)</option>
                 <option value="eq2">is exactly 2</option>
                 <option value="eq3">is exactly 3</option>
@@ -23,6 +23,7 @@ const TPL = `
                 <option value="eq7">is exactly 7</option>
                 <option value="eq8">is exactly 8</option>
                 <option value="eq9">is exactly 9</option>
+                <option value="gt0">is greater than 0</option>
                 <option value="gt1">is greater than 1</option>
                 <option value="gt2">is greater than 2</option>
                 <option value="gt3">is greater than 3</option>
@@ -32,6 +33,7 @@ const TPL = `
                 <option value="gt7">is greater than 7</option>
                 <option value="gt8">is greater than 8</option>
                 <option value="gt9">is greater than 9</option>
+                <option value="lt2">is less than 2</option>
                 <option value="lt3">is less than 3</option>
                 <option value="lt4">is less than 4</option>
                 <option value="lt5">is less than 5</option>

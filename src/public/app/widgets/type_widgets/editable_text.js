@@ -4,11 +4,11 @@ import mimeTypesService from '../../services/mime_types.js';
 import utils from "../../services/utils.js";
 import keyboardActionService from "../../services/keyboard_actions.js";
 import froca from "../../services/froca.js";
-import treeService from "../../services/tree.js";
 import noteCreateService from "../../services/note_create.js";
 import AbstractTextTypeWidget from "./abstract_text_type_widget.js";
 import link from "../../services/link.js";
-import appContext from "../../services/app_context.js";
+import appContext from "../../components/app_context.js";
+import dialogService from "../../services/dialog.js";
 
 const ENABLE_INSPECTOR = false;
 
@@ -39,6 +39,10 @@ const TPL = `
         height: 100%;
     }
     
+    body.mobile .note-detail-editable-text {
+        padding-left: 4px;
+    }
+    
     .note-detail-editable-text a:hover {
         cursor: pointer;
     }
@@ -47,7 +51,7 @@ const TPL = `
         cursor: text !important;
     }
     
-    .note-detail-editable-text *:not(figure):first-child {
+    .note-detail-editable-text *:not(figure,.include-note):first-child {
         margin-top: 0 !important;
     }
          
@@ -83,7 +87,7 @@ const TPL = `
 `;
 
 export default class EditableTextTypeWidget extends AbstractTextTypeWidget {
-    static getType() { return "editable-text"; }
+    static getType() { return "editableText"; }
 
     doRender() {
         this.$widget = $(TPL);
@@ -109,12 +113,60 @@ export default class EditableTextTypeWidget extends AbstractTextTypeWidget {
                         label: mt.title
                     }));
 
-        // CKEditor since version 12 needs the element to be visible before initialization. At the same time
-        // we want to avoid flicker - i.e. show editor only once everything is ready. That's why we have separate
+        // CKEditor since version 12 needs the element to be visible before initialization. At the same time,
+        // we want to avoid flicker - i.e., show editor only once everything is ready. That's why we have separate
         // display of $widget in both branches.
         this.$widget.show();
 
-        this.textEditor = await BalloonEditor.create(this.$editor[0], {
+        this.watchdog = new EditorWatchdog(BalloonEditor, {
+            // An average number of milliseconds between the last editor errors (defaults to 5000).
+            // When the period of time between errors is lower than that and the crashNumberLimit
+            // is also reached, the watchdog changes its state to crashedPermanently, and it stops
+            // restarting the editor. This prevents an infinite restart loop.
+            minimumNonErrorTimePeriod: 5000,
+            // A threshold specifying the number of errors (defaults to 3).
+            // After this limit is reached and the time between last errors
+            // is shorter than minimumNonErrorTimePeriod, the watchdog changes
+            // its state to crashedPermanently, and it stops restarting the editor.
+            // This prevents an infinite restart loop.
+            crashNumberLimit: 3,
+            // A minimum number of milliseconds between saving the editor data internally (defaults to 5000).
+            // Note that for large documents, this might impact the editor performance.
+            saveInterval: 5000
+        });
+
+        this.watchdog.on('stateChange', () => {
+            const currentState = this.watchdog.state;
+
+            if (!['crashed', 'crashedPermanently'].includes(currentState)) {
+                return;
+            }
+
+            console.log(`CKEditor changed to ${currentState}`);
+
+            this.watchdog.crashes.forEach(crashInfo => console.log(crashInfo));
+
+            if (currentState === 'crashedPermanently') {
+                dialogService.info(`Editing component keeps crashing. Please try restarting Trilium. If problem persists, consider creating a bug report.`);
+
+                this.watchdog.editor.enableReadOnlyMode('crashed-editor');
+            }
+        });
+
+        this.watchdog.setCreator(async (elementOrData, editorConfig) => {
+            const editor = await BalloonEditor.create(elementOrData, editorConfig);
+
+            editor.model.document.on('change:data', () => this.spacedUpdate.scheduleUpdate());
+
+            if (glob.isDev && ENABLE_INSPECTOR) {
+                await import(/* webpackIgnore: true */'../../../libraries/ckeditor/inspector.js');
+                CKEditorInspector.attach(editor);
+            }
+
+            return editor;
+        });
+
+        await this.watchdog.create(this.$editor[0], {
             placeholder: "Type the content of your note here ...",
             mention: mentionSetup,
             codeBlock: {
@@ -128,45 +180,47 @@ export default class EditableTextTypeWidget extends AbstractTextTypeWidget {
                 enablePreview: true // Enable preview view
             }
         });
-
-        this.textEditor.model.document.on('change:data', () => this.spacedUpdate.scheduleUpdate());
-
-        if (glob.isDev && ENABLE_INSPECTOR) {
-            await import(/* webpackIgnore: true */'../../../libraries/ckeditor/inspector.js');
-            CKEditorInspector.attach(this.textEditor);
-        }
     }
 
     async doRefresh(note) {
-        const noteComplement = await froca.getNoteComplement(note.noteId);
+        const blob = await note.getBlob();
 
-        await this.spacedUpdate.allowUpdateWithoutChange(() => {
-            this.textEditor.setData(noteComplement.content || "");
-        });
+        await this.spacedUpdate.allowUpdateWithoutChange(() =>
+            this.watchdog.editor.setData(blob.content || ""));
     }
 
-    getContent() {
-        const content = this.textEditor.getData();
+    getData() {
+        const content = this.watchdog.editor.getData();
 
-        // if content is only tags/whitespace (typically <p>&nbsp;</p>), then just make it empty
-        // this is important when setting new note to code
-        return utils.isHtmlEmpty(content) ? '' : content;
+        // if content is only tags/whitespace (typically <p>&nbsp;</p>), then just make it empty,
+        // this is important when setting a new note to code
+        return {
+            content: utils.isHtmlEmpty(content) ? '' : content
+        };
     }
 
     focus() {
         this.$editor.trigger('focus');
     }
 
+    scrollToEnd() {
+        this.watchdog?.editor.model.change(writer => {
+            writer.setSelection(writer.createPositionAt(this.watchdog?.editor.model.document.getRoot(), 'end'));
+        });
+
+        this.watchdog?.editor.editing.view.focus();
+    }
+
     show() {}
 
     getEditor() {
-        return this.textEditor;
+        return this.watchdog?.editor;
     }
 
     cleanup() {
-        if (this.textEditor) {
+        if (this.watchdog?.editor) {
             this.spacedUpdate.allowUpdateWithoutChange(() => {
-                this.textEditor.setData('');
+                this.watchdog.editor.setData('');
             });
         }
     }
@@ -181,8 +235,8 @@ export default class EditableTextTypeWidget extends AbstractTextTypeWidget {
     async addLinkToEditor(linkHref, linkTitle) {
         await this.initialized;
 
-        this.textEditor.model.change(writer => {
-            const insertPosition = this.textEditor.model.document.selection.getFirstPosition();
+        this.watchdog.editor.model.change(writer => {
+            const insertPosition = this.watchdog.editor.model.document.selection.getFirstPosition();
             writer.insertText(linkTitle, {linkHref: linkHref}, insertPosition);
         });
     }
@@ -190,8 +244,8 @@ export default class EditableTextTypeWidget extends AbstractTextTypeWidget {
     async addTextToEditor(text) {
         await this.initialized;
 
-        this.textEditor.model.change(writer => {
-            const insertPosition = this.textEditor.model.document.selection.getFirstPosition();
+        this.watchdog.editor.model.change(writer => {
+            const insertPosition = this.watchdog.editor.model.document.selection.getLastPosition();
             writer.insertText(text, insertPosition);
         });
     }
@@ -209,44 +263,48 @@ export default class EditableTextTypeWidget extends AbstractTextTypeWidget {
 
         if (linkTitle) {
             if (this.hasSelection()) {
-                this.textEditor.execute('link', '#' + notePath);
+                this.watchdog.editor.execute('link', `#${notePath}`);
             } else {
-                await this.addLinkToEditor('#' + notePath, linkTitle);
+                await this.addLinkToEditor(`#${notePath}`, linkTitle);
             }
         }
         else {
-            this.textEditor.execute('referenceLink', { notePath: notePath });
+            this.watchdog.editor.execute('referenceLink', { href: '#' + notePath });
         }
 
-        this.textEditor.editing.view.focus();
+        this.watchdog.editor.editing.view.focus();
     }
 
     // returns true if user selected some text, false if there's no selection
     hasSelection() {
-        const model = this.textEditor.model;
+        const model = this.watchdog.editor.model;
         const selection = model.document.selection;
 
         return !selection.isCollapsed;
     }
 
-    async executeInActiveEditorEvent({callback}) {
-        if (!this.isActive()) {
+    async executeWithTextEditorEvent({callback, resolve, ntxId}) {
+        if (!this.isNoteContext(ntxId)) {
             return;
         }
 
         await this.initialized;
 
-        callback(this.textEditor);
+        if (callback) {
+            callback(this.watchdog.editor);
+        }
+
+        resolve(this.watchdog.editor);
     }
 
     addLinkToTextCommand() {
         const selectedText = this.getSelectedText();
 
-        import("../../dialogs/add_link.js").then(d => d.showDialog(this, selectedText));
+        this.triggerCommand('showAddLinkDialog', {textTypeWidget: this, text: selectedText})
     }
 
     getSelectedText() {
-        const range = this.textEditor.model.document.selection.getFirstRange();
+        const range = this.watchdog.editor.model.document.selection.getFirstRange();
         let text = '';
 
         for (const item of range.getItems()) {
@@ -261,11 +319,26 @@ export default class EditableTextTypeWidget extends AbstractTextTypeWidget {
     async followLinkUnderCursorCommand() {
         await this.initialized;
 
-        const selection = this.textEditor.model.document.selection;
-        if (!selection.hasAttribute('linkHref')) return;
+        const selection = this.watchdog.editor.model.document.selection;
+        const selectedElement = selection.getSelectedElement();
+
+        if (selectedElement?.name === 'reference') {
+            // reference link
+            const notePath = selectedElement.getAttribute('notePath');
+
+            if (notePath) {
+                await appContext.tabManager.getActiveContext().setNote(notePath);
+                return;
+            }
+        }
+
+        if (!selection.hasAttribute('linkHref')) {
+            return;
+        }
 
         const selectedLinkUrl = selection.getAttribute('linkHref');
         const notePath = link.getNotePathFromUrl(selectedLinkUrl);
+
         if (notePath) {
             await appContext.tabManager.getActiveContext().setNote(notePath);
         } else {
@@ -274,14 +347,14 @@ export default class EditableTextTypeWidget extends AbstractTextTypeWidget {
     }
 
     addIncludeNoteToTextCommand() {
-        import("../../dialogs/include_note.js").then(d => d.showDialog(this));
+        this.triggerCommand("showIncludeNoteDialog", {textTypeWidget: this});
     }
 
     addIncludeNote(noteId, boxSize) {
-        this.textEditor.model.change( writer => {
+        this.watchdog.editor.model.change( writer => {
             // Insert <includeNote>*</includeNote> at the current selection position
             // in a way that will result in creating a valid model structure
-            this.textEditor.model.insertContent(writer.createElement('includeNote', {
+            this.watchdog.editor.model.insertContent(writer.createElement('includeNote', {
                 noteId: noteId,
                 boxSize: boxSize
             }));
@@ -291,22 +364,25 @@ export default class EditableTextTypeWidget extends AbstractTextTypeWidget {
     async addImage(noteId) {
         const note = await froca.getNote(noteId);
 
-        this.textEditor.model.change( writer => {
-            const src = `api/images/${note.noteId}/${note.title}`;
+        this.watchdog.editor.model.change( writer => {
+            const encodedTitle = encodeURIComponent(note.title);
+            const src = `api/images/${note.noteId}/${encodedTitle}`;
 
-            const imageElement = writer.createElement( 'image',  { 'src': src } );
-
-            this.textEditor.model.insertContent(imageElement, this.textEditor.model.document.selection);
+            this.watchdog.editor.execute( 'insertImage', { source: src } );
         } );
     }
 
     async createNoteForReferenceLink(title) {
-        const {note} = await noteCreateService.createNote(this.notePath, {
+        const resp = await noteCreateService.createNoteWithTypePrompt(this.notePath, {
             activate: false,
             title: title
         });
 
-        return treeService.getSomeNotePath(note);
+        if (!resp) {
+            return;
+        }
+
+        return resp.note.getBestNotePathString();
     }
 
     async refreshIncludedNoteEvent({noteId}) {

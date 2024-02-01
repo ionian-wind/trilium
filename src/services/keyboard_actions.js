@@ -1,11 +1,20 @@
 "use strict";
 
-const optionService = require('./options');
-const log = require('./log');
-const utils = require('./utils');
+const optionService = require('./options.js');
+const log = require('./log.js');
+const utils = require('./utils.js');
 
 const isMac = process.platform === "darwin";
 const isElectron = utils.isElectron();
+
+/**
+ * Scope here means on which element the keyboard shortcuts are attached - this means that for the shortcut to work,
+ * the focus has to be inside the element.
+ *
+ * So e.g. shortcuts with "note-tree" scope work only when the focus is in note tree.
+ * This allows to have the same shortcut have different actions attached based on the context
+ * e.g. CTRL-C in note tree does something a bit different from CTRL-C in the text editor.
+ */
 
 const DEFAULT_KEYBOARD_ACTIONS = [
     {
@@ -14,13 +23,13 @@ const DEFAULT_KEYBOARD_ACTIONS = [
     {
         actionName: "backInNoteHistory",
         // Mac has a different history navigation shortcuts - https://github.com/zadam/trilium/issues/376
-        defaultShortcuts: isMac ? ["Meta+Left"] : ["Alt+Left"],
+        defaultShortcuts: isMac ? ["CommandOrControl+Left"] : ["Alt+Left"],
         scope: "window"
     },
     {
         actionName: "forwardInNoteHistory",
         // Mac has a different history navigation shortcuts - https://github.com/zadam/trilium/issues/376
-        defaultShortcuts: isMac ? ["Meta+Right"] : ["Alt+Right"],
+        defaultShortcuts: isMac ? ["CommandOrControl+Right"] : ["Alt+Right"],
         scope: "window"
     },
     {
@@ -98,25 +107,25 @@ const DEFAULT_KEYBOARD_ACTIONS = [
     },
     {
         actionName: "moveNoteUp",
-        defaultShortcuts: ["CommandOrControl+Up"],
+        defaultShortcuts: isMac ? ["Alt+Up"] : ["CommandOrControl+Up"],
         description: "Move note up",
         scope: "note-tree"
     },
     {
         actionName: "moveNoteDown",
-        defaultShortcuts: ["CommandOrControl+Down"],
+        defaultShortcuts: isMac ? ["Alt+Down"] : ["CommandOrControl+Down"],
         description: "Move note down",
         scope: "note-tree"
     },
     {
         actionName: "moveNoteUpInHierarchy",
-        defaultShortcuts: ["CommandOrControl+Left"],
+        defaultShortcuts: isMac ? ["Alt+Left"] : ["CommandOrControl+Left"],
         description: "Move note up in hierarchy",
         scope: "note-tree"
     },
     {
         actionName: "moveNoteDownInHierarchy",
-        defaultShortcuts: ["CommandOrControl+Right"],
+        defaultShortcuts: isMac ? ["Alt+Right"] : ["CommandOrControl+Right"],
         description: "Move note down in hierarchy",
         scope: "note-tree"
     },
@@ -210,18 +219,18 @@ const DEFAULT_KEYBOARD_ACTIONS = [
     {
         actionName: "reopenLastTab",
         defaultShortcuts: isElectron ? ["CommandOrControl+Shift+T"] : [],
-        description: "Repoens the last closed tab",
+        description: "Reopens the last closed tab",
         scope: "window"
     },
     {
         actionName: "activateNextTab",
-        defaultShortcuts: isElectron ? ["CommandOrControl+Tab"] : [],
+        defaultShortcuts: isElectron ? ["CommandOrControl+Tab", "CommandOrControl+PageDown"] : [],
         description: "Activates tab on the right",
         scope: "window"
     },
     {
         actionName: "activatePreviousTab",
-        defaultShortcuts: isElectron ? ["CommandOrControl+Shift+Tab"] : [],
+        defaultShortcuts: isElectron ? ["CommandOrControl+Shift+Tab", "CommandOrControl+PageUp"] : [],
         description: "Activates tab on the left",
         scope: "window"
     },
@@ -229,6 +238,72 @@ const DEFAULT_KEYBOARD_ACTIONS = [
         actionName: "openNewWindow",
         defaultShortcuts: [],
         description: "Open new empty window",
+        scope: "window"
+    },
+    {
+        actionName: "toggleTray",
+        defaultShortcuts: [],
+        description: "Shows/hides the application from the system tray",
+        scope: "window"
+    },
+    {
+        actionName: "firstTab",
+        defaultShortcuts: ["CommandOrControl+1"],
+        description: "Activates the first tab in the list",
+        scope: "window"
+    },
+    {
+        actionName: "secondTab",
+        defaultShortcuts: ["CommandOrControl+2"],
+        description: "Activates the second tab in the list",
+        scope: "window"
+    },
+    {
+        actionName: "thirdTab",
+        defaultShortcuts: ["CommandOrControl+3"],
+        description: "Activates the third tab in the list",
+        scope: "window"
+    },
+    {
+        actionName: "fourthTab",
+        defaultShortcuts: ["CommandOrControl+4"],
+        description: "Activates the fourth tab in the list",
+        scope: "window"
+    },
+    {
+        actionName: "fifthTab",
+        defaultShortcuts: ["CommandOrControl+5"],
+        description: "Activates the fifth tab in the list",
+        scope: "window"
+    },
+    {
+        actionName: "sixthTab",
+        defaultShortcuts: ["CommandOrControl+6"],
+        description: "Activates the sixth tab in the list",
+        scope: "window"
+    },
+    {
+        actionName: "seventhTab",
+        defaultShortcuts: ["CommandOrControl+7"],
+        description: "Activates the seventh tab in the list",
+        scope: "window"
+    },
+    {
+        actionName: "eigthTab",
+        defaultShortcuts: ["CommandOrControl+8"],
+        description: "Activates the eighth tab in the list",
+        scope: "window"
+    },
+    {
+        actionName: "ninthTab",
+        defaultShortcuts: ["CommandOrControl+9"],
+        description: "Activates the ninth tab in the list",
+        scope: "window"
+    },
+    {
+        actionName: "lastTab",
+        defaultShortcuts: [],
+        description: "Activates the last tab in the list",
         scope: "window"
     },
 
@@ -249,7 +324,7 @@ const DEFAULT_KEYBOARD_ACTIONS = [
         scope: "window"
     },
     {
-        actionName: "showNoteRevisions",
+        actionName: "showRevisions",
         defaultShortcuts: [],
         description: "Shows Note Revisions dialog",
         scope: "window"
@@ -420,8 +495,15 @@ const DEFAULT_KEYBOARD_ACTIONS = [
     },
 
     {
+        actionName: "toggleRightPane",
+        defaultShortcuts: [],
+        description: "Toggle the display of the right pane, which includes Table of Contents and Highlights",
+        scope: "window"
+    },
+    {
         actionName: "printActiveNote",
         defaultShortcuts: [],
+        description: "Print active note",
         scope: "window"
     },
     {
@@ -496,10 +578,22 @@ const DEFAULT_KEYBOARD_ACTIONS = [
         scope: "window"
     },
     {
+        actionName: "zoomReset",
+        description: "Reset zoom level",
+        defaultShortcuts: isElectron ? ["CommandOrControl+0"] : [],
+        scope: "window"
+    },
+    {
         actionName: "copyWithoutFormatting",
         defaultShortcuts: ["CommandOrControl+Alt+C"],
         description: "Copy selected text without formatting",
         scope: "text-detail"
+    },
+    {
+        actionName: "forceSaveRevision",
+        defaultShortcuts: [],
+        description: "Force creating / saving new note revision of the active note",
+        scope: "window"
     }
 ];
 

@@ -94,6 +94,82 @@
     
 
     
+        <h3 class="subsection-title">Members</h3>
+
+        
+            
+<h4 class="name" id="api"><span class="type-signature"></span>api<span class="type-signature"> :<a href="BackendScriptApi.html">BackendScriptApi</a></span></h4>
+
+
+
+
+<div class="description">
+    An instance of the frontend api available globally.
+</div>
+
+
+
+    <h5>Type:</h5>
+    <ul>
+        <li>
+            
+<span class="param-type"><a href="BackendScriptApi.html">BackendScriptApi</a></span>
+
+
+        </li>
+    </ul>
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="services_backend_script_api.js.html">services/backend_script_api.js</a>, <a href="services_backend_script_api.js.html#line32">line 32</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+        
+    
 
     
 
@@ -102,10 +178,14 @@
 
         
                 
-<h4 class="name" id="CreateNewNoteParams">CreateNewNoteParams</h4>
+<h4 class="name" id="AttributeType">AttributeType</h4>
 
 
 
+
+<div class="description">
+    There are currently only two types of attributes, labels or relations.
+</div>
 
 
 
@@ -113,251 +193,15 @@
     <ul>
         <li>
             
-<span class="param-type">object</span>
-
-
-        </li>
-    </ul>
-
-
-
-
-
-    <h5 class="subsection-title">Properties:</h5>
-
-    
-
-<table class="props">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>parentNoteId</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">MANDATORY</td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>title</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">MANDATORY</td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>content</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
+<span class="param-type">"label"</span>
 |
 
-<span class="param-type">buffer</span>
+<span class="param-type">"relation"</span>
 
 
-            
-            </td>
+        </li>
+    </ul>
 
-            
-
-            
-
-            <td class="description last">MANDATORY</td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>type</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">text, code, file, image, search, book, relation-map - MANDATORY</td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>mime</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">value is derived from default mimes for type</td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>isProtected</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">boolean</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">default is false</td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>isExpanded</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">boolean</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">default is false</td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>prefix</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">default is empty string</td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>notePosition</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">int</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">default is last existing notePosition in a parent + 10</td>
-        </tr>
-
-    
-    </tbody>
-</table>
 
 
 
@@ -391,7 +235,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="services_backend_script_api.js.html">services/backend_script_api.js</a>, <a href="services_backend_script_api.js.html#line208">line 208</a>
+        <a href="becca_entities_battribute.js.html">becca/entities/battribute.js</a>, <a href="becca_entities_battribute.js.html#line11">line 11</a>
     </li></ul></dd>
     
 
@@ -409,7 +253,7 @@
 
             
                 
-<h4 class="name" id="CreateNoteAttribute">CreateNoteAttribute</h4>
+<h4 class="name" id="NotePathRecord">NotePathRecord</h4>
 
 
 
@@ -420,7 +264,7 @@
     <ul>
         <li>
             
-<span class="param-type">object</span>
+<span class="param-type">Object</span>
 
 
         </li>
@@ -444,8 +288,6 @@
         <th>Type</th>
 
         
-        <th>Attributes</th>
-        
 
         
 
@@ -458,89 +300,92 @@
 
         <tr>
             
-                <td class="name"><code>type</code></td>
+                <td class="name"><code>isArchived</code></td>
             
 
             <td class="type">
             
                 
-<span class="param-type">string</span>
+<span class="param-type">boolean</span>
 
 
             
             </td>
 
             
-                <td class="attributes">
-                
-
-                
-                </td>
-            
 
             
 
-            <td class="description last">attribute type - label, relation etc.</td>
+            <td class="description last"></td>
         </tr>
 
     
 
         <tr>
             
-                <td class="name"><code>name</code></td>
+                <td class="name"><code>isInHoistedSubTree</code></td>
             
 
             <td class="type">
             
                 
-<span class="param-type">string</span>
+<span class="param-type">boolean</span>
 
 
             
             </td>
 
             
-                <td class="attributes">
-                
-
-                
-                </td>
-            
 
             
 
-            <td class="description last">attribute name</td>
+            <td class="description last"></td>
         </tr>
 
     
 
         <tr>
             
-                <td class="name"><code>value</code></td>
+                <td class="name"><code>notePath</code></td>
             
 
             <td class="type">
             
                 
-<span class="param-type">string</span>
+<span class="param-type">Array.&lt;string></span>
 
 
             
             </td>
 
             
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
 
+            
+
+            <td class="description last"></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>isHidden</code></td>
+            
+
+            <td class="type">
+            
                 
-                </td>
+<span class="param-type">boolean</span>
+
+
+            
+            </td>
+
             
 
             
 
-            <td class="description last">attribute value</td>
+            <td class="description last"></td>
         </tr>
 
     
@@ -579,7 +424,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="services_backend_script_api.js.html">services/backend_script_api.js</a>, <a href="services_backend_script_api.js.html#line169">line 169</a>
+        <a href="becca_entities_bnote.js.html">becca/entities/bnote.js</a>, <a href="becca_entities_bnote.js.html#line27">line 27</a>
     </li></ul></dd>
     
 
@@ -597,10 +442,16 @@
 
             
                 
-<h4 class="name" id="CreateNoteAttribute">CreateNoteAttribute</h4>
+<h4 class="name" id="NoteType">NoteType</h4>
 
 
 
+
+<div class="description">
+    There are many different Note types, some of which are entirely opaque to the
+end user. Those types should be used only for checking against, they are
+not for direct use.
+</div>
 
 
 
@@ -608,132 +459,54 @@
     <ul>
         <li>
             
-<span class="param-type">object</span>
+<span class="param-type">"file"</span>
+|
+
+<span class="param-type">"image"</span>
+|
+
+<span class="param-type">"search"</span>
+|
+
+<span class="param-type">"noteMap"</span>
+|
+
+<span class="param-type">"launcher"</span>
+|
+
+<span class="param-type">"doc"</span>
+|
+
+<span class="param-type">"contentWidget"</span>
+|
+
+<span class="param-type">"text"</span>
+|
+
+<span class="param-type">"relationMap"</span>
+|
+
+<span class="param-type">"render"</span>
+|
+
+<span class="param-type">"canvas"</span>
+|
+
+<span class="param-type">"mermaid"</span>
+|
+
+<span class="param-type">"book"</span>
+|
+
+<span class="param-type">"webView"</span>
+|
+
+<span class="param-type">"code"</span>
 
 
         </li>
     </ul>
 
-
-
-
-
-    <h5 class="subsection-title">Properties:</h5>
-
-    
-
-<table class="props">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-        <th>Attributes</th>
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>type</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-
-                
-                </td>
-            
-
-            
-
-            <td class="description last">attribute type - label, relation etc.</td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>name</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-
-                
-                </td>
-            
-
-            
-
-            <td class="description last">attribute name</td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>value</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-                </td>
-            
-
-            
-
-            <td class="description last">attribute value</td>
-        </tr>
-
-    
-    </tbody>
-</table>
 
 
 
@@ -767,7 +540,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="services_backend_script_api.js.html">services/backend_script_api.js</a>, <a href="services_backend_script_api.js.html#line229">line 229</a>
+        <a href="becca_entities_bnote.js.html">becca/entities/bnote.js</a>, <a href="becca_entities_bnote.js.html#line20">line 20</a>
     </li></ul></dd>
     
 
@@ -785,10 +558,14 @@
 
             
                 
-<h4 class="name" id="CreateNoteExtraOptions">CreateNoteExtraOptions</h4>
+<h4 class="name" id="int">int</h4>
 
 
 
+
+<div class="description">
+    A whole number
+</div>
 
 
 
@@ -796,230 +573,12 @@
     <ul>
         <li>
             
-<span class="param-type">object</span>
+<span class="param-type">number</span>
 
 
         </li>
     </ul>
 
-
-
-
-
-    <h5 class="subsection-title">Properties:</h5>
-
-    
-
-<table class="props">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-        <th>Attributes</th>
-        
-
-        
-        <th>Default</th>
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>json</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">boolean</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    false
-                
-                </td>
-            
-
-            <td class="description last">should the note be JSON</td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>isProtected</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">boolean</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    false
-                
-                </td>
-            
-
-            <td class="description last">should the note be protected</td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>type</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    'text'
-                
-                </td>
-            
-
-            <td class="description last">note type</td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>mime</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    'text/html'
-                
-                </td>
-            
-
-            <td class="description last">MIME type of the note</td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>attributes</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">Array.&lt;<a href="global.html#CreateNoteAttribute">CreateNoteAttribute</a>></span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    []
-                
-                </td>
-            
-
-            <td class="description last">attributes to be created for this note</td>
-        </tr>
-
-    
-    </tbody>
-</table>
 
 
 
@@ -1053,7 +612,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="services_backend_script_api.js.html">services/backend_script_api.js</a>, <a href="services_backend_script_api.js.html#line236">line 236</a>
+        <a href="services_backend_script_api.js.html">services/backend_script_api.js</a>, <a href="services_backend_script_api.js.html#line27">line 27</a>
     </li></ul></dd>
     
 
@@ -1083,13 +642,13 @@
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-sql.html">sql</a></li></ul><h3>Classes</h3><ul><li><a href="Attribute.html">Attribute</a></li><li><a href="BackendScriptApi.html">BackendScriptApi</a></li><li><a href="Branch.html">Branch</a></li><li><a href="EtapiToken.html">EtapiToken</a></li><li><a href="Note.html">Note</a></li><li><a href="NoteRevision.html">NoteRevision</a></li><li><a href="Option.html">Option</a></li><li><a href="RecentNote.html">RecentNote</a></li></ul><h3><a href="global.html">Global</a></h3>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-sql.html">sql</a></li></ul><h3>Classes</h3><ul><li><a href="AbstractBeccaEntity.html">AbstractBeccaEntity</a></li><li><a href="BAttachment.html">BAttachment</a></li><li><a href="BAttribute.html">BAttribute</a></li><li><a href="BBranch.html">BBranch</a></li><li><a href="BEtapiToken.html">BEtapiToken</a></li><li><a href="BNote.html">BNote</a></li><li><a href="BOption.html">BOption</a></li><li><a href="BRecentNote.html">BRecentNote</a></li><li><a href="BRevision.html">BRevision</a></li><li><a href="BackendScriptApi.html">BackendScriptApi</a></li></ul><h3>Global</h3><ul><li><a href="global.html#api">api</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.7</a>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.2</a>
 </footer>
 
 <script> prettyPrint(); </script>

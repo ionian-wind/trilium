@@ -1,6 +1,6 @@
-const becca = require("../becca/becca");
-const utils = require("./utils");
-const EtapiToken = require("../becca/entities/etapi_token");
+const becca = require('../becca/becca.js');
+const utils = require('./utils.js');
+const BEtapiToken = require('../becca/entities/betapi_token.js');
 const crypto = require("crypto");
 
 function getTokens() {
@@ -15,7 +15,7 @@ function createToken(tokenName) {
     const token = utils.randomSecureToken(32);
     const tokenHash = getTokenHash(token);
 
-    const etapiToken = new EtapiToken({
+    const etapiToken = new BEtapiToken({
         name: tokenName,
         tokenHash
     }).save();
@@ -28,6 +28,24 @@ function createToken(tokenName) {
 function parseAuthToken(auth) {
     if (!auth) {
         return null;
+    }
+
+    if (auth.startsWith("Basic ")) {
+        // allow also basic auth format for systems which allow this type of authentication
+        // expect ETAPI token in the password field, require "etapi" username
+        // https://github.com/zadam/trilium/issues/3181
+        const basicAuthStr = utils.fromBase64(auth.substring(6)).toString("utf-8");
+        const basicAuthChunks = basicAuthStr.split(":");
+
+        if (basicAuthChunks.length !== 2) {
+            return null;
+        }
+
+        if (basicAuthChunks[0] !== "etapi") {
+            return null;
+        }
+
+        auth = basicAuthChunks[1];
     }
 
     const chunks = auth.split("_");
@@ -79,7 +97,7 @@ function renameToken(etapiTokenId, newName) {
     const etapiToken = becca.getEtapiToken(etapiTokenId);
 
     if (!etapiToken) {
-        throw new Error(`Token ${etapiTokenId} does not exist`);
+        throw new Error(`Token '${etapiTokenId}' does not exist`);
     }
 
     etapiToken.name = newName;

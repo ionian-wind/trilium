@@ -1,7 +1,8 @@
 "use strict";
 
-const becca = require('../../becca/becca');
-const log = require('../../services/log');
+const becca = require('../../becca/becca.js');
+const log = require('../../services/log.js');
+const NotFoundError = require('../../errors/not_found_error.js');
 
 function getNotesAndBranchesAndAttributes(noteIds) {
     noteIds = new Set(noteIds);
@@ -10,7 +11,7 @@ function getNotesAndBranchesAndAttributes(noteIds) {
     const collectedBranchIds = new Set();
 
     function collectEntityIds(note) {
-        if (collectedNoteIds.has(note.noteId)) {
+        if (!note || collectedNoteIds.has(note.noteId)) {
             return;
         }
 
@@ -31,7 +32,7 @@ function getNotesAndBranchesAndAttributes(noteIds) {
         for (const attr of note.ownedAttributes) {
             collectedAttributeIds.add(attr.attributeId);
 
-            if (attr.type === 'relation' && attr.name === 'template' && attr.targetNote) {
+            if (attr.type === 'relation' && ['template', 'inherit'].includes(attr.name) && attr.targetNote) {
                 collectEntityIds(attr.targetNote);
             }
         }
@@ -57,7 +58,8 @@ function getNotesAndBranchesAndAttributes(noteIds) {
             title: note.getTitleOrProtected(),
             isProtected: note.isProtected,
             type: note.type,
-            mime: note.mime
+            mime: note.mime,
+            blobId: note.blobId
         });
     }
 
@@ -65,7 +67,7 @@ function getNotesAndBranchesAndAttributes(noteIds) {
 
     if (noteIds.has('root')) {
         branches.push({
-            branchId: 'root',
+            branchId: 'none_root',
             noteId: 'root',
             parentNoteId: 'none',
             notePosition: 0,
@@ -96,6 +98,11 @@ function getNotesAndBranchesAndAttributes(noteIds) {
 
     for (const attributeId of collectedAttributeIds) {
         const attribute = becca.attributes[attributeId];
+
+        if (!attribute) {
+            log.error(`Could not find attribute for attributeId=${attributeId}`);
+            continue;
+        }
 
         attributes.push({
             attributeId: attribute.attributeId,
@@ -136,7 +143,7 @@ function getTree(req) {
     }
 
     if (!(subTreeNoteId in becca.notes)) {
-        return [404, `Note ${subTreeNoteId} not found in the cache`];
+        throw new NotFoundError(`Note '${subTreeNoteId}' not found in the cache`);
     }
 
     collect(becca.notes[subTreeNoteId]);

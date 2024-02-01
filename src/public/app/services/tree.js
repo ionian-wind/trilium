@@ -1,12 +1,11 @@
 import ws from './ws.js';
 import utils from './utils.js';
-import server from './server.js';
 import froca from './froca.js';
 import hoistedNoteService from '../services/hoisted_note.js';
-import appContext from "./app_context.js";
+import appContext from "../components/app_context.js";
 
 /**
- * @return {string|null}
+ * @returns {string|null}
  */
 async function resolveNotePath(notePath, hoistedNoteId = 'root') {
     const runPath = await resolveNotePathToSegments(notePath, hoistedNoteId);
@@ -17,18 +16,18 @@ async function resolveNotePath(notePath, hoistedNoteId = 'root') {
 /**
  * Accepts notePath which might or might not be valid and returns an existing path as close to the original
  * notePath as possible. Part of the path might not be valid because of note moving (which causes
- * path change) or other corruption, in that case this will try to get some other valid path to the correct note.
+ * path change) or other corruption, in that case, this will try to get some other valid path to the correct note.
  *
- * @return {string[]}
+ * @returns {Promise<string[]>}
  */
 async function resolveNotePathToSegments(notePath, hoistedNoteId = 'root', logErrors = true) {
     utils.assertArguments(notePath);
 
-    // we might get notePath with the ntxId suffix, remove it if present
-    notePath = notePath.split("-")[0].trim();
+    // we might get notePath with the params suffix, remove it if present
+    notePath = notePath.split("?")[0].trim();
 
     if (notePath.length === 0) {
-        return;
+        return null;
     }
 
     const path = notePath.split("/").reverse();
@@ -56,10 +55,10 @@ async function resolveNotePathToSegments(notePath, hoistedNoteId = 'root', logEr
                     ws.logError(`Can't find note ${childNoteId}`);
                 }
 
-                return;
+                return null;
             }
 
-            child.resortParents();
+            child.sortParents();
 
             const parents = child.getParentNotes();
 
@@ -68,7 +67,7 @@ async function resolveNotePathToSegments(notePath, hoistedNoteId = 'root', logEr
                     ws.logError(`No parents found for note ${childNoteId} (${child.title}) for path ${notePath}`);
                 }
 
-                return;
+                return null;
             }
 
             if (!parents.some(p => p.noteId === parentNoteId)) {
@@ -80,14 +79,10 @@ async function resolveNotePathToSegments(notePath, hoistedNoteId = 'root', logEr
                         You can ignore this message as it is mostly harmless.`);
                 }
 
-                const someNotePath = getSomeNotePath(child, hoistedNoteId);
+                const bestNotePath = child.getBestNotePath(hoistedNoteId);
 
-                if (someNotePath) { // in case it's root the path may be empty
-                    const pathToRoot = someNotePath.split("/").reverse().slice(1);
-
-                    if (!pathToRoot.includes("root")) {
-                        pathToRoot.push('root');
-                    }
+                if (bestNotePath) {
+                    const pathToRoot = bestNotePath.reverse().slice(1);
 
                     for (const noteId of pathToRoot) {
                         effectivePathSegments.push(noteId);
@@ -108,35 +103,17 @@ async function resolveNotePathToSegments(notePath, hoistedNoteId = 'root', logEr
         return effectivePathSegments;
     }
     else {
-        const note = await froca.getNote(getNoteIdFromNotePath(notePath));
+        const note = await froca.getNote(getNoteIdFromUrl(notePath));
 
-        const someNotePathSegments = getSomeNotePathSegments(note, hoistedNoteId);
+        const bestNotePath = note.getBestNotePath(hoistedNoteId);
 
-        if (!someNotePathSegments) {
-            throw new Error(`Did not find any path segments for ${note.toString()}, hoisted note ${hoistedNoteId}`);
+        if (!bestNotePath) {
+            throw new Error(`Did not find any path segments for '${note.toString()}', hoisted note '${hoistedNoteId}'`);
         }
 
-        // if there isn't actually any note path with hoisted note then return the original resolved note path
-        return someNotePathSegments.includes(hoistedNoteId) ? someNotePathSegments : effectivePathSegments;
+        // if there isn't actually any note path with hoisted note, then return the original resolved note path
+        return bestNotePath.includes(hoistedNoteId) ? bestNotePath : effectivePathSegments;
     }
-}
-
-function getSomeNotePathSegments(note, hoistedNotePath = 'root') {
-    utils.assertArguments(note);
-
-    const notePaths = note.getSortedNotePaths(hoistedNotePath);
-
-    return notePaths.length > 0 ? notePaths[0].notePath : null;
-}
-
-function getSomeNotePath(note, hoistedNotePath = 'root') {
-    const notePath = getSomeNotePathSegments(note, hoistedNotePath);
-
-    return notePath === null ? null : notePath.join('/');
-}
-
-async function sortAlphabetically(noteId) {
-    await server.put(`notes/${noteId}/sort`);
 }
 
 ws.subscribeToMessages(message => {
@@ -152,29 +129,33 @@ ws.subscribeToMessages(message => {
 });
 
 function getParentProtectedStatus(node) {
-    return hoistedNoteService.isHoistedNode(node) ? 0 : node.getParent().data.isProtected;
+    return hoistedNoteService.isHoistedNode(node) ? false : node.getParent().data.isProtected;
 }
 
-function getNoteIdFromNotePath(notePath) {
-    if (!notePath) {
+function getNoteIdFromUrl(urlOrNotePath) {
+    if (!urlOrNotePath) {
         return null;
     }
 
-    const path = notePath.split("/");
+    const [notePath] = urlOrNotePath.split("?");
+    const segments = notePath.split("/");
 
-    const lastSegment = path[path.length - 1];
-
-    // path could have also ntxId suffix
-    return lastSegment.split("-")[0];
+    return segments[segments.length - 1];
 }
 
-async function getBranchIdFromNotePath(notePath) {
-    const {noteId, parentNoteId} = getNoteIdAndParentIdFromNotePath(notePath);
+async function getBranchIdFromUrl(urlOrNotePath) {
+    const {noteId, parentNoteId} = getNoteIdAndParentIdFromUrl(urlOrNotePath);
 
     return await froca.getBranchId(parentNoteId, noteId);
 }
 
-function getNoteIdAndParentIdFromNotePath(notePath) {
+function getNoteIdAndParentIdFromUrl(urlOrNotePath) {
+    if (!urlOrNotePath) {
+        return {};
+    }
+
+    const [notePath] = urlOrNotePath.split("?");
+
     if (notePath === 'root') {
         return {
             noteId: 'root',
@@ -186,15 +167,12 @@ function getNoteIdAndParentIdFromNotePath(notePath) {
     let noteId = '';
 
     if (notePath) {
-        const path = notePath.split("/");
+        const segments = notePath.split("/");
 
-        const lastSegment = path[path.length - 1];
+        noteId = segments[segments.length - 1];
 
-        // path could have also ntxId suffix
-        noteId = lastSegment.split("-")[0];
-
-        if (path.length > 1) {
-            parentNoteId = path[path.length - 2];
+        if (segments.length > 1) {
+            parentNoteId = segments[segments.length - 2];
         }
     }
 
@@ -239,7 +217,7 @@ async function getNoteTitle(noteId, parentNoteId = null) {
         if (branchId) {
             const branch = froca.getBranch(branchId);
 
-            if (branch && branch.prefix) {
+            if (branch?.prefix) {
                 title = `${branch.prefix} - ${title}`;
             }
         }
@@ -296,42 +274,26 @@ async function getNoteTitleWithPathAsSuffix(notePath) {
 
     if (path.length > 0) {
         $titleWithPath
-            .append($('<span class="note-path">').text(' (' + path.join(' / ') + ')'));
+            .append($('<span class="note-path">').text(` (${path.join(' / ')})`));
     }
 
     return $titleWithPath;
 }
 
-function getHashValueFromAddress() {
-    const str = document.location.hash ? document.location.hash.substr(1) : ""; // strip initial #
-
-    return str.split("-");
-}
-
-function parseNotePath(notePath) {
-    let noteIds = notePath.split('/');
-
-    if (noteIds[0] !== 'root') {
-        noteIds = ['root'].concat(noteIds);
-    }
-
-    return noteIds;
+function isNotePathInHiddenSubtree(notePath) {
+    return notePath?.includes("root/_hidden");
 }
 
 export default {
-    sortAlphabetically,
     resolveNotePath,
     resolveNotePathToSegments,
-    getSomeNotePath,
-    getSomeNotePathSegments,
     getParentProtectedStatus,
     getNotePath,
-    getNoteIdFromNotePath,
-    getNoteIdAndParentIdFromNotePath,
-    getBranchIdFromNotePath,
+    getNoteIdFromUrl,
+    getNoteIdAndParentIdFromUrl,
+    getBranchIdFromUrl,
     getNoteTitle,
     getNotePathTitle,
     getNoteTitleWithPathAsSuffix,
-    getHashValueFromAddress,
-    parseNotePath
+    isNotePathInHiddenSubtree
 };

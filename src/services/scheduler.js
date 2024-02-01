@@ -1,12 +1,16 @@
-const scriptService = require('./script');
-const cls = require('./cls');
-const sqlInit = require('./sql_init');
-const config = require('./config');
-const log = require('./log');
-const sql = require("./sql");
-const becca = require("../becca/becca");
-const specialNotesService = require("../services/special_notes");
+const scriptService = require('./script.js');
+const cls = require('./cls.js');
+const sqlInit = require('./sql_init.js');
+const config = require('./config.js');
+const log = require('./log.js');
+const attributeService = require('../services/attributes.js');
+const protectedSessionService = require('../services/protected_session.js');
+const hiddenSubtreeService = require('./hidden_subtree.js');
 
+/**
+ * @param {BNote} note
+ * @return {int[]}
+ */
 function getRunAtHours(note) {
     try {
         return note.getLabelValues('runAtHour').map(hour => parseInt(hour));
@@ -19,23 +23,9 @@ function getRunAtHours(note) {
 }
 
 function runNotesWithLabel(runAttrValue) {
-    // TODO: should be refactored into becca search
-    const noteIds = sql.getColumn(`
-        SELECT notes.noteId 
-        FROM notes 
-        JOIN attributes ON attributes.noteId = notes.noteId
-                       AND attributes.isDeleted = 0
-                       AND attributes.type = 'label'
-                       AND attributes.name = 'run' 
-                       AND attributes.value = ? 
-        WHERE
-          notes.type = 'code'
-          AND notes.isDeleted = 0`, [runAttrValue]);
-
-    const notes = becca.getNotes(noteIds);
-
     const instanceName = config.General ? config.General.instanceName : null;
     const currentHours = new Date().getHours();
+    const notes = attributeService.getNotesWithLabel('run', runAttrValue);
 
     for (const note of notes) {
         const runOnInstances = note.getLabelValues('runOnInstance');
@@ -50,6 +40,10 @@ function runNotesWithLabel(runAttrValue) {
 }
 
 sqlInit.dbReady.then(() => {
+    cls.init(() => {
+        hiddenSubtreeService.checkHiddenSubtree();
+    });
+
     if (!process.env.TRILIUM_SAFE_MODE) {
         setTimeout(cls.wrap(() => runNotesWithLabel('backendStartup')), 10 * 1000);
 
@@ -57,6 +51,8 @@ sqlInit.dbReady.then(() => {
 
         setInterval(cls.wrap(() => runNotesWithLabel('daily')), 24 * 3600 * 1000);
 
-        setTimeout(cls.wrap(() => specialNotesService.createMissingSpecialNotes()), 10 * 1000);
+        setInterval(cls.wrap(() => hiddenSubtreeService.checkHiddenSubtree()), 7 * 3600 * 1000);
     }
+
+    setInterval(() => protectedSessionService.checkProtectedSessionExpiration(), 30000);
 });

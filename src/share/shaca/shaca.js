@@ -6,31 +6,39 @@ class Shaca {
     }
 
     reset() {
-        /** @type {Object.<String, Note>} */
+        /** @type {Object.<String, SNote>} */
         this.notes = {};
-        /** @type {Object.<String, Branch>} */
+        /** @type {Object.<String, SBranch>} */
         this.branches = {};
-        /** @type {Object.<String, Branch>} */
+        /** @type {Object.<String, SBranch>} */
         this.childParentToBranch = {};
-        /** @type {Object.<String, Attribute>} */
+        /** @type {Object.<String, SAttribute>} */
         this.attributes = {};
-        /** @type {Object.<String, String>} */
+        /** @type {Object.<String, SAttachment>} */
+        this.attachments = {};
+        /** @type {Object.<String, SNote>} */
         this.aliasToNote = {};
 
-        /** @type {Note|null} */
+        /** @type {SNote|null} */
         this.shareRootNote = null;
+
+        /** @type {boolean} true if the index of all shared subtrees is enabled */
+        this.shareIndexEnabled = false;
 
         this.loaded = false;
     }
 
+    /** @returns {SNote|null} */
     getNote(noteId) {
         return this.notes[noteId];
     }
 
+    /** @returns {boolean} */
     hasNote(noteId) {
         return noteId in this.notes;
     }
 
+    /** @returns {SNote[]} */
     getNotes(noteIds, ignoreMissing = false) {
         const filteredNotes = [];
 
@@ -42,7 +50,7 @@ class Shaca {
                     continue;
                 }
 
-                throw new Error(`Note '${noteId}' was not found in becca.`);
+                throw new Error(`Note '${noteId}' was not found in shaca.`);
             }
 
             filteredNotes.push(note);
@@ -51,16 +59,24 @@ class Shaca {
         return filteredNotes;
     }
 
+    /** @returns {SBranch|null} */
     getBranch(branchId) {
         return this.branches[branchId];
     }
 
+    /** @returns {SBranch|null} */
+    getBranchFromChildAndParent(childNoteId, parentNoteId) {
+        return this.childParentToBranch[`${childNoteId}-${parentNoteId}`];
+    }
+
+    /** @returns {SAttribute|null} */
     getAttribute(attributeId) {
         return this.attributes[attributeId];
     }
 
-    getBranchFromChildAndParent(childNoteId, parentNoteId) {
-        return this.childParentToBranch[`${childNoteId}-${parentNoteId}`];
+    /** @returns {SAttachment|null} */
+    getAttachment(attachmentId) {
+        return this.attachments[attachmentId];
     }
 
     getEntity(entityName, entityId) {

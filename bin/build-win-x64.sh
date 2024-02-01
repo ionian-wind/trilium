@@ -22,14 +22,12 @@ rm -rf $BUILD_DIR
 
 mv "./dist/Trilium Notes-win32-x64" $BUILD_DIR
 
-# removing software WebGL binaries because they are pretty huge and not necessary
-rm -r $BUILD_DIR/swiftshader
-
 cp bin/tpl/anonymize-database.sql $BUILD_DIR/
 
 cp -r dump-db $BUILD_DIR/
+rm -rf $BUILD_DIR/dump-db/node_modules
 
-cp bin/tpl/trilium-{portable,no-cert-check,safe-mode}.{bat,ps1} $BUILD_DIR/
+cp bin/tpl/trilium-{portable,no-cert-check,safe-mode}.bat $BUILD_DIR/
 
 echo "Zipping windows x64 electron distribution..."
 VERSION=`jq -r ".version" package.json`

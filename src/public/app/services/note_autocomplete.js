@@ -1,11 +1,10 @@
 import server from "./server.js";
-import appContext from "./app_context.js";
+import appContext from "../components/app_context.js";
 import utils from './utils.js';
 import noteCreateService from './note_create.js';
-import treeService from './tree.js';
 import froca from "./froca.js";
 
-// this key needs to have this value so it's hit by the tooltip
+// this key needs to have this value, so it's hit by the tooltip
 const SELECTED_NOTE_PATH_KEY = "data-note-path";
 
 const SELECTED_EXTERNAL_LINK_KEY = "data-external-link";
@@ -17,9 +16,9 @@ async function autocompleteSourceForCKEditor(queryText) {
                 return {
                     action: row.action,
                     noteTitle: row.noteTitle,
-                    id: '@' + row.notePathTitle,
+                    id: `@${row.notePathTitle}`,
                     name: row.notePathTitle,
-                    link: '#' + row.notePath,
+                    link: `#${row.notePath}`,
                     notePath: row.notePath,
                     highlightedNotePathTitle: row.highlightedNotePathTitle
                 }
@@ -33,9 +32,7 @@ async function autocompleteSourceForCKEditor(queryText) {
 async function autocompleteSource(term, cb, options = {}) {
     const activeNoteId = appContext.tabManager.getActiveContextNoteId();
 
-    let results = await server.get('autocomplete'
-            + '?query=' + encodeURIComponent(term)
-            + '&activeNoteId=' + activeNoteId);
+    let results = await server.get(`autocomplete?query=${encodeURIComponent(term)}&activeNoteId=${activeNoteId}`);
 
     if (term.trim().length >= 1 && options.allowCreatingNotes) {
         results = [
@@ -89,6 +86,11 @@ function showRecentNotes($el) {
     $el.setSelectedNotePath("");
     $el.autocomplete("val", "");
     $el.trigger('focus');
+
+    // simulate pressing down arrow to trigger autocomplete
+    const e = $.Event('keydown');
+    e.which = 40; // arrow down
+    $el.trigger(e);
 }
 
 function initNoteAutocomplete($el, options) {
@@ -104,7 +106,7 @@ function initNoteAutocomplete($el, options) {
     $el.addClass("note-autocomplete-input");
 
     const $clearTextButton = $("<a>")
-            .addClass("input-group-text input-clearer-button bx bx-x")
+            .addClass("input-group-text input-clearer-button bx bxs-tag-x")
             .prop("title", "Clear text field");
 
     const $showRecentNotesButton = $("<a>")
@@ -112,8 +114,7 @@ function initNoteAutocomplete($el, options) {
             .prop("title", "Show recent notes");
 
     const $goToSelectedNoteButton = $("<a>")
-        .addClass("input-group-text go-to-selected-note-button bx bx-arrow-to-right")
-        .attr("data-action", "note");
+        .addClass("input-group-text go-to-selected-note-button bx bx-arrow-to-right");
 
     const $sideButtons = $("<div>")
         .addClass("input-group-append")
@@ -132,15 +133,24 @@ function initNoteAutocomplete($el, options) {
         showRecentNotes($el);
 
         // this will cause the click not give focus to the "show recent notes" button
-        // this is important because otherwise input will lose focus immediatelly and not show the results
+        // this is important because otherwise input will lose focus immediately and not show the results
         return false;
     });
 
+    let autocompleteOptions = {};
+    if (options.container) {
+        autocompleteOptions.dropdownMenuContainer = options.container;
+        autocompleteOptions.debug = true;   // don't close on blur
+    }
+
     $el.autocomplete({
+        ...autocompleteOptions,
         appendTo: document.querySelector('body'),
         hint: false,
         autoselect: true,
-        openOnFocus: true,
+        // openOnFocus has to be false, otherwise re-focus (after return from note type chooser dialog) forces
+        // re-querying of the autocomplete source which then changes the currently selected suggestion
+        openOnFocus: false,
         minLength: 0,
         tabAutocomplete: false
     }, [
@@ -170,12 +180,21 @@ function initNoteAutocomplete($el, options) {
         }
 
         if (suggestion.action === 'create-note') {
+            const {success, noteType, templateNoteId} = await noteCreateService.chooseNoteType();
+
+            if (!success) {
+                return;
+            }
+
             const {note} = await noteCreateService.createNote(suggestion.parentNoteId, {
                 title: suggestion.noteTitle,
-                activate: false
+                activate: false,
+                type: noteType,
+                templateNoteId: templateNoteId
             });
 
-            suggestion.notePath = treeService.getSomeNotePath(note);
+            const hoistedNoteId = appContext.tabManager.getActiveContext()?.hoistedNoteId;
+            suggestion.notePath = note.getBestNotePathString(hoistedNoteId);
         }
 
         $el.setSelectedNotePath(suggestion.notePath);
@@ -217,6 +236,10 @@ function init() {
 
     $.fn.getSelectedNoteId = function () {
         const notePath = $(this).getSelectedNotePath();
+        if (!notePath) {
+            return null;
+        }
+
         const chunks = notePath.split('/');
 
         return chunks.length >= 1 ? chunks[chunks.length - 1] : null;
@@ -231,7 +254,7 @@ function init() {
             .closest(".input-group")
             .find(".go-to-selected-note-button")
             .toggleClass("disabled", !notePath.trim())
-            .attr(SELECTED_NOTE_PATH_KEY, notePath); // we also set attr here so tooltip can be displayed
+            .attr("href", `#${notePath}`); // we also set href here so tooltip can be displayed
     };
 
     $.fn.getSelectedExternalLink = function () {
@@ -243,12 +266,12 @@ function init() {
     };
 
     $.fn.setSelectedExternalLink = function (externalLink) {
-        $(this).attr(SELECTED_EXTERNAL_LINK_KEY, externalLink);
-
-        $(this)
-            .closest(".input-group")
-            .find(".go-to-selected-note-button")
-            .toggleClass("disabled", true);
+        if (externalLink) {
+            $(this)
+                .closest(".input-group")
+                .find(".go-to-selected-note-button")
+                .toggleClass("disabled", true);
+        }
     }
 
     $.fn.setNote = async function (noteId) {
@@ -261,7 +284,6 @@ function init() {
 }
 
 export default {
-    autocompleteSource,
     autocompleteSourceForCKEditor,
     initNoteAutocomplete,
     showRecentNotes,

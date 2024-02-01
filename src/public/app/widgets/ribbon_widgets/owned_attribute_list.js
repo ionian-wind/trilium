@@ -1,7 +1,6 @@
 import NoteContextAwareWidget from "../note_context_aware_widget.js";
 import AttributeDetailWidget from "../attribute_widgets/attribute_detail.js";
 import AttributeEditorWidget from "../attribute_widgets/attribute_editor.js";
-import attributeService from "../../services/attributes.js";
 
 const TPL = `
 <div class="attribute-list">
@@ -9,7 +8,8 @@ const TPL = `
         .attribute-list {
             margin-left: 7px;
             margin-right: 7px;
-            margin-top: 3px;
+            margin-top: 5px;
+            margin-bottom: 2px;
             position: relative;
         }
         
@@ -47,8 +47,8 @@ export default class OwnedAttributeListWidget extends NoteContextAwareWidget {
 
     getTitle() {
         return {
-            show: true,
-            title: "Owned attributes",
+            show: !this.note.isLaunchBarConfig(),
+            title: "Owned Attributes",
             icon: "bx bx-list-check"
         };
     }
@@ -73,14 +73,6 @@ export default class OwnedAttributeListWidget extends NoteContextAwareWidget {
 
     async updateAttributeListCommand({attributes}) {
         await this.attributeEditorWidget.updateAttributeList(attributes);
-    }
-
-    entitiesReloadedEvent({loadResults}) {
-        if (loadResults.getAttributes(this.componentId).find(attr => attributeService.isAffecting(attr, this.note))) {
-            this.refreshWithNote(this.note, true);
-
-            this.getTitle(this.note);
-        }
     }
 
     focus() {

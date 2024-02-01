@@ -1,39 +1,42 @@
 "use strict";
 
-const sql = require('../../services/sql');
-const protectedSessionService = require('../../services/protected_session');
-const noteService = require('../../services/notes');
-const beccaService = require('../../becca/becca_service');
+const sql = require('../../services/sql.js');
+const protectedSessionService = require('../../services/protected_session.js');
+const noteService = require('../../services/notes.js');
+const becca = require('../../becca/becca.js');
 
 function getRecentChanges(req) {
     const {ancestorNoteId} = req.params;
 
     let recentChanges = [];
 
-    const noteRevisions = sql.getRows(`
+    const revisionRows = sql.getRows(`
         SELECT 
             notes.noteId,
             notes.isDeleted AS current_isDeleted,
             notes.deleteId AS current_deleteId,
             notes.title AS current_title,
             notes.isProtected AS current_isProtected,
-            note_revisions.title,
-            note_revisions.utcDateCreated AS utcDate,
-            note_revisions.dateCreated AS date
+            revisions.title,
+            revisions.utcDateCreated AS utcDate,
+            revisions.dateCreated AS date
         FROM 
-            note_revisions
+            revisions
             JOIN notes USING(noteId)`);
 
-    for (const noteRevision of noteRevisions) {
-        if (beccaService.isInAncestor(noteRevision.noteId, ancestorNoteId)) {
-            recentChanges.push(noteRevision);
+    for (const revisionRow of revisionRows) {
+        const note = becca.getNote(revisionRow.noteId);
+
+        // for deleted notes, the becca note is null, and it's not possible to (easily) determine if it belongs to a subtree
+        if (ancestorNoteId === 'root' || note?.hasAncestor(ancestorNoteId)) {
+            recentChanges.push(revisionRow);
         }
     }
 
     // now we need to also collect date points not represented in note revisions:
     // 1. creation for all notes (dateCreated)
     // 2. deletion for deleted notes (dateModified)
-    const notes = sql.getRows(`
+    const noteRows = sql.getRows(`
             SELECT
                 notes.noteId,
                 notes.isDeleted AS current_isDeleted,
@@ -41,8 +44,8 @@ function getRecentChanges(req) {
                 notes.title AS current_title,
                 notes.isProtected AS current_isProtected,
                 notes.title,
-                notes.utcDateCreated AS utcDate,
-                notes.dateCreated AS date
+                notes.utcDateCreated AS utcDate, -- different from the second SELECT
+                notes.dateCreated AS date        -- different from the second SELECT
             FROM notes
         UNION ALL
             SELECT
@@ -52,14 +55,17 @@ function getRecentChanges(req) {
                 notes.title AS current_title,
                 notes.isProtected AS current_isProtected,
                 notes.title,
-                notes.utcDateModified AS utcDate,
-                notes.dateModified AS date
+                notes.utcDateModified AS utcDate, -- different from the first SELECT
+                notes.dateModified AS date        -- different from the first SELECT
             FROM notes
             WHERE notes.isDeleted = 1`);
 
-    for (const note of notes) {
-        if (beccaService.isInAncestor(note.noteId, ancestorNoteId)) {
-            recentChanges.push(note);
+    for (const noteRow of noteRows) {
+        const note = becca.getNote(noteRow.noteId);
+
+        // for deleted notes, the becca note is null, and it's not possible to (easily) determine if it belongs to a subtree
+        if (ancestorNoteId === 'root' || note?.hasAncestor(ancestorNoteId)) {
+            recentChanges.push(noteRow);
         }
     }
 

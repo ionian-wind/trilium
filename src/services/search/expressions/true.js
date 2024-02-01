@@ -1,9 +1,9 @@
 "use strict";
 
-const Expression = require('./expression');
+const Expression = require('./expression.js');
 
 class TrueExp extends Expression {
-    execute(inputNoteSet, executionContext) {
+    execute(inputNoteSet, executionContext, searchContext) {
         return inputNoteSet;
     }
 }

@@ -1,7 +1,8 @@
-import CollapsibleWidget from "../collapsible_widget.js";
 import linkService from "../../services/link.js";
 import server from "../../services/server.js";
 import froca from "../../services/froca.js";
+import NoteContextAwareWidget from "../note_context_aware_widget.js";
+import options from "../../services/options.js";
 
 const TPL = `
 <div class="edited-notes-widget">
@@ -20,7 +21,7 @@ const TPL = `
 </div>
 `;
 
-export default class EditedNotesWidget extends CollapsibleWidget {
+export default class EditedNotesWidget extends NoteContextAwareWidget {
     get name() {
         return "editedNotes";
     }
@@ -34,7 +35,9 @@ export default class EditedNotesWidget extends CollapsibleWidget {
         return {
             show: this.isEnabled(),
             // promoted attributes have priority over edited notes
-            activate: this.note.getPromotedDefinitionAttributes().length === 0,
+            activate:
+                (this.note.getPromotedDefinitionAttributes().length === 0 || !options.is('promotedAttributesOpenInRibbon'))
+                && options.is('editedNotesOpenInRibbon'),
             title: 'Edited Notes',
             icon: 'bx bx-calendar-edit'
         };
@@ -48,7 +51,7 @@ export default class EditedNotesWidget extends CollapsibleWidget {
     }
 
     async refreshWithNote(note) {
-        let editedNotes = await server.get('edited-notes/' + note.getLabelValue("dateNote"));
+        let editedNotes = await server.get(`edited-notes/${note.getLabelValue("dateNote")}`);
 
         editedNotes = editedNotes.filter(n => n.noteId !== note.noteId);
 
@@ -69,7 +72,7 @@ export default class EditedNotesWidget extends CollapsibleWidget {
             const $item = $('<span class="edited-note-line">');
 
             if (editedNote.isDeleted) {
-                const title = editedNote.title + " (deleted)";
+                const title = `${editedNote.title} (deleted)`;
                 $item.append(
                     $("<i>")
                         .text(title)
@@ -77,7 +80,9 @@ export default class EditedNotesWidget extends CollapsibleWidget {
                 );
             }
             else {
-                $item.append(editedNote.notePath ? await linkService.createNoteLink(editedNote.notePath.join("/"), {showNotePath: true}) : editedNote.title);
+                $item.append(editedNote.notePath
+                    ? await linkService.createLink(editedNote.notePath.join("/"), {showNotePath: true})
+                    : $("<span>").text(editedNote.title));
             }
 
             if (i < editedNotes.length - 1) {

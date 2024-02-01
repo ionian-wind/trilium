@@ -3,6 +3,7 @@ import toastService from "./toast.js";
 import server from "./server.js";
 import options from "./options.js";
 import frocaUpdater from "./froca_updater.js";
+import appContext from "../components/app_context.js";
 
 const messageHandlers = [];
 
@@ -52,7 +53,7 @@ const processedEntityChangeIds = new Set();
 function logRows(entityChanges) {
     const filteredRows = entityChanges.filter(row =>
         !processedEntityChangeIds.has(row.id)
-        && (row.entityName !== 'options' || row.entityId !== 'openTabs'));
+        && (row.entityName !== 'options' || row.entityId !== 'openNoteContexts'));
 
     if (filteredRows.length > 0) {
         console.debug(utils.now(), "Frontend update data: ", filteredRows);
@@ -85,7 +86,7 @@ async function executeFrontendUpdate(entityChanges) {
         }
 
         try {
-            // it's my turn so start it up
+            // it's my turn, so start it up
             consumeQueuePromise = consumeFrontendUpdateData();
 
             await consumeQueuePromise;
@@ -117,6 +118,19 @@ async function handleMessage(event) {
     }
     else if (message.type === 'consistency-checks-failed') {
         toastService.showError("Consistency checks failed! See logs for details.", 50 * 60000);
+    }
+    else if (message.type === 'api-log-messages') {
+        appContext.triggerEvent("apiLogMessages", {noteId: message.noteId, messages: message.messages});
+    }
+    else if (message.type === 'toast') {
+        toastService.showMessage(message.message);
+    }
+    else if (message.type === 'execute-script') {
+        const bundleService = (await import("../services/bundle.js")).default;
+        const froca = (await import("../services/froca.js")).default;
+        const originEntity = message.originEntityId ? await froca.getNote(message.originEntityId) : null;
+
+        bundleService.getAndExecuteBundle(message.currentNoteId, originEntity, message.script, message.params);
     }
 }
 
@@ -168,14 +182,14 @@ async function consumeFrontendUpdateData() {
             logError(`Encountered error ${e.message}: ${e.stack}, reloading frontend.`);
 
             if (!glob.isDev && !options.is('debugModeEnabled')) {
-                // if there's an error in updating the frontend then the easy option to recover is to reload the frontend completely
+                // if there's an error in updating the frontend, then the easy option to recover is to reload the frontend completely
 
                 utils.reloadFrontendApp();
             }
             else {
                 console.log("nonProcessedEntityChanges causing the timeout", nonProcessedEntityChanges);
 
-                alert(`Encountered error "${e.message}", check out the console.`);
+                toastService.showError(`Encountered error "${e.message}", check out the console.`);
             }
         }
 
@@ -191,8 +205,7 @@ async function consumeFrontendUpdateData() {
 
 function connectWebSocket() {
     const loc = window.location;
-    const webSocketUri = (loc.protocol === "https:" ? "wss:" : "ws:")
-                       + "//" + loc.host + loc.pathname;
+    const webSocketUri = `${loc.protocol === "https:" ? "wss:" : "ws:"}//${loc.host}${loc.pathname}`;
 
     // use wss for secure messaging
     const ws = new WebSocket(webSocketUri);

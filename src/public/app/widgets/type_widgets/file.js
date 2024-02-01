@@ -52,7 +52,7 @@ export default class FileTypeWidget extends TypeWidget {
     async doRefresh(note) {
         this.$widget.show();
 
-        const noteComplement = await this.noteContext.getNoteComplement();
+        const blob = await this.note.getBlob();
 
         this.$previewContent.empty().hide();
         this.$pdfPreview.attr('src', '').empty().hide();
@@ -60,29 +60,35 @@ export default class FileTypeWidget extends TypeWidget {
         this.$videoPreview.hide();
         this.$audioPreview.hide();
 
-        if (noteComplement.content) {
+        if (blob.content) {
             this.$previewContent.show().scrollTop(0);
-            this.$previewContent.text(noteComplement.content);
+            this.$previewContent.text(blob.content);
         }
         else if (note.mime === 'application/pdf') {
-            this.$pdfPreview.show().attr("src", openService.getUrlForDownload("api/notes/" + this.noteId + "/open"));
+            this.$pdfPreview.show().attr("src", openService.getUrlForDownload(`api/notes/${this.noteId}/open`));
         }
         else if (note.mime.startsWith('video/')) {
             this.$videoPreview
                 .show()
-                .attr("src", openService.getUrlForDownload("api/notes/" + this.noteId + "/open-partial"))
+                .attr("src", openService.getUrlForDownload(`api/notes/${this.noteId}/open-partial`))
                 .attr("type", this.note.mime)
                 .css("width", this.$widget.width());
         }
         else if (note.mime.startsWith('audio/')) {
             this.$audioPreview
                 .show()
-                .attr("src", openService.getUrlForDownload("api/notes/" + this.noteId + "/open-partial"))
+                .attr("src", openService.getUrlForDownload(`api/notes/${this.noteId}/open-partial`))
                 .attr("type", this.note.mime)
                 .css("width", this.$widget.width());
         }
         else {
             this.$previewNotAvailable.show();
+        }
+    }
+
+    async entitiesReloadedEvent({loadResults}) {
+        if (loadResults.isNoteReloaded(this.noteId)) {
+            this.refresh();
         }
     }
 }

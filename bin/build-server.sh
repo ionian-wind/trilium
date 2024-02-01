@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 PKG_DIR=dist/trilium-linux-x64-server
-NODE_VERSION=16.14.0
+NODE_VERSION=18.18.2
 
 if [ "$1" != "DONTCOPY" ]
 then
@@ -31,6 +31,7 @@ chmod 755 $PKG_DIR/trilium.sh
 cp bin/tpl/anonymize-database.sql $PKG_DIR/
 
 cp -r dump-db $PKG_DIR/
+rm -rf $PKG_DIR/dump-db/node_modules
 
 VERSION=`jq -r ".version" package.json`
 

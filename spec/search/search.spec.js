@@ -1,10 +1,10 @@
-const searchService = require('../../src/services/search/services/search');
-const Note = require('../../src/becca/entities/note');
-const Branch = require('../../src/becca/entities/branch');
-const SearchContext = require('../../src/services/search/search_context');
-const dateUtils = require('../../src/services/date_utils');
-const becca = require('../../src/becca/becca');
-const {NoteBuilder, findNoteByTitle, note} = require('./note_cache_mocking');
+const searchService = require('../../src/services/search/services/search.js');
+const BNote = require('../../src/becca/entities/bnote.js');
+const BBranch = require('../../src/becca/entities/bbranch.js');
+const SearchContext = require('../../src/services/search/search_context.js');
+const dateUtils = require('../../src/services/date_utils.js');
+const becca = require('../../src/becca/becca.js');
+const {NoteBuilder, findNoteByTitle, note} = require('./becca_mocking.js');
 
 describe("Search", () => {
     let rootNote;
@@ -12,8 +12,8 @@ describe("Search", () => {
     beforeEach(() => {
         becca.reset();
 
-        rootNote = new NoteBuilder(new Note({noteId: 'root', title: 'root', type: 'text'}));
-        new Branch({branchId: 'root', noteId: 'root', parentNoteId: 'none', notePosition: 10});
+        rootNote = new NoteBuilder(new BNote({noteId: 'root', title: 'root', type: 'text'}));
+        new BBranch({branchId: 'none_root', noteId: 'root', parentNoteId: 'none', notePosition: 10});
     });
 
     it("simple path match", () => {

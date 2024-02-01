@@ -1,15 +1,17 @@
 function lex(str) {
     str = str.toLowerCase();
 
+    let fulltextQuery = "";
     const fulltextTokens = [];
     const expressionTokens = [];
 
+    /** @type {boolean|string} */
     let quotes = false; // otherwise contains used quote - ', " or `
     let fulltextEnded = false;
     let currentWord = '';
 
     function isSymbolAnOperator(chr) {
-        return ['=', '*', '>', '<', '!', "-", "+"].includes(chr);
+        return ['=', '*', '>', '<', '!', "-", "+", '%', ','].includes(chr);
     }
 
     function isPreviousSymbolAnOperator() {
@@ -37,6 +39,8 @@ function lex(str) {
             expressionTokens.push(rec);
         } else {
             fulltextTokens.push(rec);
+
+            fulltextQuery = str.substr(0, endIndex + 1);
         }
 
         currentWord = '';
@@ -76,14 +80,14 @@ function lex(str) {
                 quotes = false;
             }
             else {
-                // it's a quote but within other kind of quotes so it's valid as a literal character
+                // it's a quote, but within other kind of quotes, so it's valid as a literal character
                 currentWord += chr;
             }
 
             continue;
         }
         else if (!quotes) {
-            if (!fulltextEnded && currentWord === 'note' && chr === '.') {
+            if (!fulltextEnded && currentWord === 'note' && chr === '.' && i + 1 < str.length) {
                 fulltextEnded = true;
             }
 
@@ -124,12 +128,19 @@ function lex(str) {
             }
         }
 
+        if (chr === ',') {
+            continue;
+        }
+
         currentWord += chr;
     }
 
     finishWord(str.length - 1);
 
+    fulltextQuery = fulltextQuery.trim();
+
     return {
+        fulltextQuery,
         fulltextTokens,
         expressionTokens
     }

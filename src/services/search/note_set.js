@@ -2,7 +2,7 @@
 
 class NoteSet {
     constructor(notes = []) {
-        /** @type {Note[]} */
+        /** @type {BNote[]} */
         this.notes = notes;
         this.noteIdSet = new Set(notes.map(note => note.noteId));
         /** @type {boolean} */
@@ -31,12 +31,7 @@ class NoteSet {
     }
 
     mergeIn(anotherNoteSet) {
-        for (const note of anotherNoteSet.notes) {
-            if (!this.noteIdSet.has(note.noteId)) {
-                this.noteIdSet.add(note.noteId);
-                this.notes.push(note);
-            }
-        }
+        this.addAll(anotherNoteSet.notes);
     }
 
     minus(anotherNoteSet) {

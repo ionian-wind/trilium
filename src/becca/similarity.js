@@ -1,8 +1,8 @@
-const becca = require('./becca');
-const log = require('../services/log');
+const becca = require('./becca.js');
+const log = require('../services/log.js');
 const beccaService = require('./becca_service.js');
-const dateUtils = require('../services/date_utils');
-const { JSDOM } = require("jsdom");
+const dateUtils = require('../services/date_utils.js');
+const {JSDOM} = require("jsdom");
 
 const DEBUG = false;
 
@@ -24,7 +24,7 @@ const IGNORED_ATTR_NAMES = [
     "keyboardshortcut",
     "noteinfowidgetdisabled",
     "linkmapwidgetdisabled",
-    "noterevisionswidgetdisabled",
+    "revisionswidgetdisabled",
     "whatlinksherewidgetdisabled",
     "similarnoteswidgetdisabled",
     "disableinclusion",
@@ -35,12 +35,12 @@ const IGNORED_ATTR_NAMES = [
 function filterUrlValue(value) {
     return value
         .replace(/https?:\/\//ig, "")
-        .replace(/www\./ig, "")
+        .replace(/www.js\./ig, "")
         .replace(/(\.net|\.com|\.org|\.info|\.edu)/ig, "");
 }
 
 /**
- * @param {Note} note
+ * @param {BNote} note
  */
 function buildRewardMap(note) {
     // Need to use Map instead of object: https://github.com/zadam/trilium/issues/1895
@@ -132,9 +132,9 @@ function buildRewardMap(note) {
             }
         }
 
-        // title is the top with weight 1 so smaller headings will have lower weight
+        // the title is the top with weight 1 so smaller headings will have lower weight
 
-        // technically H1 is not supported but for the case it's present let's weigh it just as H2
+        // technically H1 is not supported, but for the case it's present let's weigh it just as H2
         addHeadingsToRewardMap("h1", 0.9);
         addHeadingsToRewardMap("h2", 0.9);
         addHeadingsToRewardMap("h3", 0.8);
@@ -167,7 +167,6 @@ function trimMime(mime) {
             }
         }
 
-        mimeCache[mime] = str;
         mimeCache[mime] = str;
     }
 
@@ -224,8 +223,8 @@ function splitToWords(text) {
  */
 function hasConnectingRelation(sourceNote, targetNote) {
     return sourceNote.getAttributes().find(attr => attr.type === 'relation'
-                                           && ['includenotelink', 'imagelink'].includes(attr.name)
-                                           && attr.value === targetNote.noteId);
+        && ['includenotelink', 'imagelink'].includes(attr.name)
+        && attr.value === targetNote.noteId);
 }
 
 async function findSimilarNotes(noteId) {
@@ -261,7 +260,7 @@ async function findSimilarNotes(noteId) {
 
         let counter = 0;
 
-        // when the title is very long then weight of each individual word should be lower
+        // when the title is very long, then weight of each individual word should be lowered,
         // also pretty important in e.g. long URLs in label values
         const lengthPenalization = 1 / Math.pow(text.length, 0.3);
 
@@ -281,7 +280,7 @@ async function findSimilarNotes(noteId) {
     }
 
     function gatherAncestorRewards(note) {
-        if (ancestorNoteIds.has(note.noteId)) {
+        if (!note || ancestorNoteIds.has(note.noteId)) {
             return 0;
         }
 
@@ -301,7 +300,7 @@ async function findSimilarNotes(noteId) {
 
                     for (const branch of parentNote.getParentBranches()) {
                         score += gatherRewards(branch.prefix, 0.3)
-                               + gatherAncestorRewards(branch.parentNote);
+                            + gatherAncestorRewards(branch.parentNote);
                     }
                 }
             }
@@ -314,7 +313,7 @@ async function findSimilarNotes(noteId) {
 
     function computeScore(candidateNote) {
         let score = gatherRewards(trimMime(candidateNote.mime))
-                  + gatherAncestorRewards(candidateNote);
+            + gatherAncestorRewards(candidateNote);
 
         if (candidateNote.isDecrypted) {
             score += gatherRewards(candidateNote.title);
@@ -365,10 +364,10 @@ async function findSimilarNotes(noteId) {
         }
 
         /**
-         * We want to improve standing of notes which have been created in similar time to each other since
+         * We want to improve the standing of notes which have been created in similar time to each other since
          * there's a good chance they are related.
          *
-         * But there's an exception - if they were created really close to each other (withing few seconds) then
+         * But there's an exception - if they were created really close to each other (within few seconds) then
          * they are probably part of the import and not created by hand - these OTOH should not benefit.
          */
         const {utcDateCreated} = candidateNote;
@@ -382,12 +381,12 @@ async function findSimilarNotes(noteId) {
                 score += 1;
             }
             else if (utcDateCreated.substr(0, 10) === dateLimits.minDate.substr(0, 10)
-                   || utcDateCreated.substr(0, 10) === dateLimits.maxDate.substr(0, 10)) {
+                || utcDateCreated.substr(0, 10) === dateLimits.maxDate.substr(0, 10)) {
                 if (displayRewards) {
                     console.log("Adding reward for same day of creation");
                 }
 
-                // smaller bonus when outside of the window but within same date
+                // smaller bonus when outside of the window but within the same date
                 score += 0.5;
             }
         }
@@ -405,7 +404,7 @@ async function findSimilarNotes(noteId) {
         let score = computeScore(candidateNote);
 
         if (score >= 1.5) {
-            const notePath = beccaService.getSomePath(candidateNote);
+            const notePath = candidateNote.getBestNotePath();
 
             // this takes care of note hoisting
             if (!notePath) {
@@ -448,7 +447,7 @@ async function findSimilarNotes(noteId) {
 }
 
 /**
- * Point of this is to break up long running sync process to avoid blocking
+ * The point of this is to break up the long-running sync process to avoid blocking
  * see https://snyk.io/blog/nodejs-how-even-quick-async-functions-can-block-the-event-loop-starve-io/
  */
 function setImmediatePromise() {

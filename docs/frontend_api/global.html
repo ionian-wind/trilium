@@ -94,6 +94,82 @@
     
 
     
+        <h3 class="subsection-title">Members</h3>
+
+        
+            
+<h4 class="name" id="api"><span class="type-signature"></span>api<span class="type-signature"> :<a href="FrontendScriptApi.html">FrontendScriptApi</a></span></h4>
+
+
+
+
+<div class="description">
+    An instance of the frontend api available globally.
+</div>
+
+
+
+    <h5>Type:</h5>
+    <ul>
+        <li>
+            
+<span class="param-type"><a href="FrontendScriptApi.html">FrontendScriptApi</a></span>
+
+
+        </li>
+    </ul>
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="services_frontend_script_api.js.html">services/frontend_script_api.js</a>, <a href="services_frontend_script_api.js.html#line25">line 25</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+        
+    
 
     
         <h3 class="subsection-title">Methods</h3>
@@ -104,16 +180,12 @@
     
 
     
-    <h4 class="name" id="doRenderBody"><span class="type-signature">(async) </span>doRenderBody<span class="signature">()</span><span class="type-signature"></span></h4>
+    <h4 class="name" id="getJsonContent"><span class="type-signature"></span>getJsonContent<span class="signature">()</span><span class="type-signature"> &rarr; {*}</span></h4>
     
 
     
 
 
-
-<div class="description">
-    for overriding
-</div>
 
 
 
@@ -156,7 +228,121 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="widgets_collapsible_widget.js.html">widgets/collapsible_widget.js</a>, <a href="widgets_collapsible_widget.js.html#line34">line 34</a>
+        <a href="entities_fblob.js.html">entities/fblob.js</a>, <a href="entities_fblob.js.html#line22">line 22</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Throws:</h5>
+
+        
+
+    <div class="param-desc">
+    
+        Error in case of invalid JSON
+    
+    </div>
+
+
+    
+
+
+<h5>Returns:</h5>
+
+        
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">*</span>
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="getJsonContentSafely"><span class="type-signature"></span>getJsonContentSafely<span class="signature">()</span><span class="type-signature"> &rarr; {*|null}</span></h4>
+    
+
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="entities_fblob.js.html">entities/fblob.js</a>, <a href="entities_fblob.js.html#line31">line 31</a>
     </li></ul></dd>
     
 
@@ -181,6 +367,31 @@
 
 
 
+<h5>Returns:</h5>
+
+        
+<div class="param-desc">
+    valid object or null if the content cannot be parsed as JSON
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">*</span>
+|
+
+<span class="param-type">null</span>
+
+
+    </dd>
+</dl>
+
+    
 
 
 
@@ -194,7 +405,82 @@
 
         
                 
-<h4 class="name" id="ToolbarButtonOptions">ToolbarButtonOptions</h4>
+<h4 class="name" id="AttributeType">AttributeType</h4>
+
+
+
+
+<div class="description">
+    There are currently only two types of attributes, labels or relations.
+</div>
+
+
+
+    <h5>Type:</h5>
+    <ul>
+        <li>
+            
+<span class="param-type">"label"</span>
+|
+
+<span class="param-type">"relation"</span>
+
+
+        </li>
+    </ul>
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="entities_fattribute.js.html">entities/fattribute.js</a>, <a href="entities_fattribute.js.html#line3">line 3</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+            
+                
+<h4 class="name" id="NotePathRecord">NotePathRecord</h4>
 
 
 
@@ -229,8 +515,6 @@
         <th>Type</th>
 
         
-        <th>Attributes</th>
-        
 
         
 
@@ -243,24 +527,18 @@
 
         <tr>
             
-                <td class="name"><code>title</code></td>
+                <td class="name"><code>isArchived</code></td>
             
 
             <td class="type">
             
                 
-<span class="param-type">string</span>
+<span class="param-type">boolean</span>
 
 
             
             </td>
 
-            
-                <td class="attributes">
-                
-
-                
-                </td>
             
 
             
@@ -272,91 +550,92 @@
 
         <tr>
             
-                <td class="name"><code>icon</code></td>
+                <td class="name"><code>isInHoistedSubTree</code></td>
             
 
             <td class="type">
             
                 
-<span class="param-type">string</span>
+<span class="param-type">boolean</span>
 
 
             
             </td>
 
             
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-                </td>
-            
 
             
 
-            <td class="description last">name of the boxicon to be used (e.g. "time" for "bx-time" icon)</td>
+            <td class="description last"></td>
         </tr>
 
     
 
         <tr>
             
-                <td class="name"><code>action</code></td>
+                <td class="name"><code>isSearch</code></td>
             
 
             <td class="type">
             
                 
-<span class="param-type">function</span>
+<span class="param-type">boolean</span>
 
 
             
             </td>
 
             
-                <td class="attributes">
-                
-
-                
-                </td>
-            
 
             
 
-            <td class="description last">callback handling the click on the button</td>
+            <td class="description last"></td>
         </tr>
 
     
 
         <tr>
             
-                <td class="name"><code>shortcut</code></td>
+                <td class="name"><code>notePath</code></td>
             
 
             <td class="type">
             
                 
-<span class="param-type">string</span>
+<span class="param-type">Array.&lt;string></span>
 
 
             
             </td>
 
             
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
 
+            
+
+            <td class="description last"></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>isHidden</code></td>
+            
+
+            <td class="type">
+            
                 
-                </td>
+<span class="param-type">boolean</span>
+
+
+            
+            </td>
+
             
 
             
 
-            <td class="description last">keyboard shortcut for the button, e.g. "alt+t"</td>
+            <td class="description last"></td>
         </tr>
 
     
@@ -395,7 +674,195 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="services_frontend_script_api.js.html">services/frontend_script_api.js</a>, <a href="services_frontend_script_api.js.html#line104">line 104</a>
+        <a href="entities_fnote.js.html">entities/fnote.js</a>, <a href="entities_fnote.js.html#line35">line 35</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+            
+                
+<h4 class="name" id="NoteType">NoteType</h4>
+
+
+
+
+<div class="description">
+    There are many different Note types, some of which are entirely opaque to the
+end user. Those types should be used only for checking against, they are
+not for direct use.
+</div>
+
+
+
+    <h5>Type:</h5>
+    <ul>
+        <li>
+            
+<span class="param-type">"file"</span>
+|
+
+<span class="param-type">"image"</span>
+|
+
+<span class="param-type">"search"</span>
+|
+
+<span class="param-type">"noteMap"</span>
+|
+
+<span class="param-type">"launcher"</span>
+|
+
+<span class="param-type">"doc"</span>
+|
+
+<span class="param-type">"contentWidget"</span>
+|
+
+<span class="param-type">"text"</span>
+|
+
+<span class="param-type">"relationMap"</span>
+|
+
+<span class="param-type">"render"</span>
+|
+
+<span class="param-type">"canvas"</span>
+|
+
+<span class="param-type">"mermaid"</span>
+|
+
+<span class="param-type">"book"</span>
+|
+
+<span class="param-type">"webView"</span>
+|
+
+<span class="param-type">"code"</span>
+
+
+        </li>
+    </ul>
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="entities_fnote.js.html">entities/fnote.js</a>, <a href="entities_fnote.js.html#line28">line 28</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+            
+                
+<h4 class="name" id="int">int</h4>
+
+
+
+
+<div class="description">
+    A whole number
+</div>
+
+
+
+    <h5>Type:</h5>
+    <ul>
+        <li>
+            
+<span class="param-type">number</span>
+
+
+        </li>
+    </ul>
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="services_frontend_script_api.js.html">services/frontend_script_api.js</a>, <a href="services_frontend_script_api.js.html#line20">line 20</a>
     </li></ul></dd>
     
 
@@ -425,13 +892,13 @@
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="Attribute.html">Attribute</a></li><li><a href="Branch.html">Branch</a></li><li><a href="FrontendScriptApi.html">FrontendScriptApi</a></li><li><a href="NoteComplement.html">NoteComplement</a></li><li><a href="NoteShort.html">NoteShort</a></li></ul><h3>Global</h3><ul><li><a href="global.html#doRenderBody">doRenderBody</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="BasicWidget.html">BasicWidget</a></li><li><a href="FAttachment.html">FAttachment</a></li><li><a href="FAttribute.html">FAttribute</a></li><li><a href="FBranch.html">FBranch</a></li><li><a href="FNote.html">FNote</a></li><li><a href="FrontendScriptApi.html">FrontendScriptApi</a></li><li><a href="NoteContextAwareWidget.html">NoteContextAwareWidget</a></li><li><a href="RightPanelWidget.html">RightPanelWidget</a></li></ul><h3>Global</h3><ul><li><a href="global.html#api">api</a></li><li><a href="global.html#getJsonContent">getJsonContent</a></li><li><a href="global.html#getJsonContentSafely">getJsonContentSafely</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.7</a>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.2</a>
 </footer>
 
 <script> prettyPrint(); </script>

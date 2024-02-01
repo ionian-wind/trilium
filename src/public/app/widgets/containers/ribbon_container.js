@@ -39,7 +39,7 @@ const TPL = `
     
     .ribbon-tab-title.active {
         color: var(--main-text-color);
-        border-bottom: 1px solid var(--main-text-color);
+        border-bottom: 3px solid var(--main-text-color);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -78,10 +78,6 @@ const TPL = `
         margin-right: 5px;
     }
     
-    .ribbon-button-container .icon-action {
-        padding: 5px;
-    }
-    
     .ribbon-button-container > * {
         position: relative;
         top: -3px;
@@ -92,7 +88,7 @@ const TPL = `
         display: none;
         border-bottom: 1px solid var(--main-border-color);
         margin-left: 10px;
-        margin-right: 10px;
+        margin-right: 5px; /* needs to have this value so that the bottom border is the same width as the top one */
     }
     
     .ribbon-body.active {
@@ -123,6 +119,11 @@ export default class RibbonContainer extends NoteContextAwareWidget {
         this.contentSized();
         this.ribbonWidgets = [];
         this.buttonWidgets = [];
+    }
+
+    isEnabled() {
+        return super.isEnabled()
+            && this.noteContext.viewScope.viewMode === 'default';
     }
 
     ribbon(widget) {
@@ -186,13 +187,25 @@ export default class RibbonContainer extends NoteContextAwareWidget {
             const activeChild = this.getActiveRibbonWidget();
 
             if (activeChild && (refreshActiveTab || !wasAlreadyActive)) {
-                activeChild.handleEvent('noteSwitched', {noteContext: this.noteContext, notePath: this.notePath}).then(() => {
-                    activeChild.focus?.();
-                });
+                const handleEventPromise = activeChild.handleEvent('noteSwitched', {noteContext: this.noteContext, notePath: this.notePath});
+
+                if (refreshActiveTab) {
+                    if (handleEventPromise) {
+                        handleEventPromise.then(() => activeChild.focus?.());
+                    } else {
+                        activeChild.focus?.();
+                    }
+                }
             }
         } else {
             this.lastActiveComponentId = null;
         }
+    }
+
+    async noteSwitched() {
+        this.lastActiveComponentId = null;
+
+        await super.noteSwitched();
     }
 
     async refreshWithNote(note, noExplicitActivation = false) {
@@ -328,12 +341,12 @@ export default class RibbonContainer extends NoteContextAwareWidget {
     entitiesReloadedEvent({loadResults}) {
         if (loadResults.isNoteReloaded(this.noteId) && this.lastNoteType !== this.note.type) {
             // note type influences the list of available ribbon tabs the most
-            // check for type is so that we don't update on each title rename
+            // check for the type is so that we don't update on each title rename
             this.lastNoteType = this.note.type;
 
             this.refresh();
         }
-        else if (loadResults.getAttributes(this.componentId).find(attr => attributeService.isAffecting(attr, this.note))) {
+        else if (loadResults.getAttributeRows(this.componentId).find(attr => attributeService.isAffecting(attr, this.note))) {
             this.refreshWithNote(this.note, true);
         }
     }

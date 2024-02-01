@@ -1,6 +1,5 @@
 import server from "../../services/server.js";
 import froca from "../../services/froca.js";
-import treeService from "../../services/tree.js";
 import linkService from "../../services/link.js";
 import attributeAutocompleteService from "../../services/attribute_autocomplete.js";
 import noteAutocompleteService from "../../services/note_autocomplete.js";
@@ -8,6 +7,8 @@ import promotedAttributeDefinitionParser from '../../services/promoted_attribute
 import NoteContextAwareWidget from "../note_context_aware_widget.js";
 import SpacedUpdate from "../../services/spaced_update.js";
 import utils from "../../services/utils.js";
+import shortcutService from "../../services/shortcuts.js";
+import appContext from "../../components/app_context.js";
 
 const TPL = `
 <div class="attr-detail">
@@ -97,6 +98,14 @@ const TPL = `
             <th>Promoted:</th>
             <td><input type="checkbox" class="attr-input-promoted form-control form-control-sm" /></td>
         </tr>
+        <tr class="attr-row-promoted-alias">
+            <th title="The name to be displayed in the promoted attributes UI.">Alias:</th>
+            <td>
+                <div class="input-group">
+                    <input type="text" class="attr-input-promoted-alias form-control" />
+                </div>
+            </td>
+        </tr>
         <tr class="attr-row-multiplicity">
             <th title="Multiplicity defines how many attributes of the same name can be created - at max 1 or more than 1.">Multiplicity:</th>
             <td>
@@ -114,6 +123,7 @@ const TPL = `
                   <option value="number">Number</option>
                   <option value="boolean">Boolean</option>
                   <option value="date">Date</option>
+                  <option value="datetime">Date & Time</option>
                   <option value="url">URL</option>
                 </select>
             </td>
@@ -189,6 +199,8 @@ const ATTR_HELP = {
         "runAtHour": "On which hour should this run. Should be used together with <code>#run=hourly</code>. Can be defined multiple times for more runs during the day.",
         "disableInclusion": "scripts with this label won't be included into parent script execution.",
         "sorted": "keeps child notes sorted by title alphabetically",
+        "sortDirection": "ASC (the default) or DESC",
+        "sortFoldersFirst": "Folders (notes with children) should be sorted on top",
         "top": "keep given note on top in its parent (applies only on sorted parents)",
         "hidePromotedAttributes": "Hide promoted attributes on this note",
         "readOnly": "editor is in read only mode. Works only for text and code notes.",
@@ -204,34 +216,65 @@ const ATTR_HELP = {
         "workspace": "marks this note as a workspace which allows easy hoisting",
         "workspaceIconClass": "defines box icon CSS class which will be used in tab when hoisted to this note",
         "workspaceTabBackgroundColor": "CSS color used in the note tab when hoisted to this note",
+        "workspaceCalendarRoot": "Defines per-workspace calendar root",
+        "workspaceTemplate": "This note will appear in the selection of available template when creating new note, but only when hoisted into a workspace containing this template",
         "searchHome": "new search notes will be created as children of this note",
-        "hoistedSearchHome": "new search notes will be created as children of this note when hoisted to some ancestor of this note",
-        "inbox": "default inbox location for new notes",
-        "hoistedInbox": "default inbox location for new notes when hoisted to some ancestor of this note",
+        "workspaceSearchHome": "new search notes will be created as children of this note when hoisted to some ancestor of this workspace note",
+        "inbox": "default inbox location for new notes - when you create a note using \"new note\" button in the sidebar, notes will be created as child notes in the note marked as with <code>#inbox</code> label.",
+        "workspaceInbox": "default inbox location for new notes when hoisted to some ancestor of this workspace note",
         "sqlConsoleHome": "default location of SQL console notes",
-        "bookmarked": "note with this label will appear in bookmarks",
         "bookmarkFolder": "note with this label will appear in bookmarks as folder (allowing access to its children)",
         "shareHiddenFromTree": "this note is hidden from left navigation tree, but still accessible with its URL",
+        "shareExternalLink": "note will act as a link to an external website in the share tree",
         "shareAlias": "define an alias using which the note will be available under https://your_trilium_host/share/[your_alias]",
         "shareOmitDefaultCss": "default share page CSS will be omitted. Use when you make extensive styling changes.",
         "shareRoot": "marks note which is served on /share root.",
+        "shareDescription": "define text to be added to the HTML meta tag for description",
         "shareRaw": "note will be served in its raw format, without HTML wrapper",
         "shareDisallowRobotIndexing": `will forbid robot indexing of this note via <code>X-Robots-Tag: noindex</code> header`,
+        "shareCredentials": "require credentials to access this shared note. Value is expected to be in format 'username:password'. Don't forget to make this inheritable to apply to child-notes/images.",
+        "shareIndex": "note with this this label will list all roots of shared notes",
         "displayRelations": "comma delimited names of relations which should be displayed. All other ones will be hidden.",
         "hideRelations": "comma delimited names of relations which should be hidden. All other ones will be displayed.",
+        "titleTemplate": `default title of notes created as children of this note. The value is evaluated as JavaScript string 
+                        and thus can be enriched with dynamic content via the injected <code>now</code> and <code>parentNote</code> variables. Examples:
+                        
+                        <ul>
+                            <li><code>\${parentNote.getLabelValue('authorName')}'s literary works</code></li>
+                            <li><code>Log for \${now.format('YYYY-MM-DD HH:mm:ss')}</code></li>
+                        </ul>
+                        
+                        See <a href="https://github.com/zadam/trilium/wiki/Default-note-title">wiki with details</a>, API docs for <a href="https://zadam.github.io/trilium/backend_api/Note.html">parentNote</a> and <a href="https://day.js.org/docs/en/display/format">now</a> for details.`,
+        "template": "This note will appear in the selection of available template when creating new note",
+        "toc": "<code>#toc</code> or <code>#toc=show</code> will force the Table of Contents to be shown, <code>#toc=hide</code> will force hiding it. If the label doesn't exist, the global setting is observed",
+        "color": "defines color of the note in note tree, links etc. Use any valid CSS color value like 'red' or #a13d5f",
+        "keyboardShortcut": "Defines a keyboard shortcut which will immediately jump to this note. Example: 'ctrl+alt+e'. Requires frontend reload for the change to take effect.",
+        "keepCurrentHoisting": "Opening this link won't change hoisting even if the note is not displayable in the current hoisted subtree.",
+        "executeButton": "Title of the button which will execute the current code note",
+        "executeDescription": "Longer description of the current code note displayed together with the execute button",
+        "excludeFromNoteMap": "Notes with this label will be hidden from the Note Map",
+        "newNotesOnTop": "New notes will be created at the top of the parent note, not on the bottom.",
+        "hideHighlightWidget": "Hide Hightlight List widget"
     },
     "relation": {
-        "runOnNoteCreation": "executes when note is created on backend",
+        "runOnNoteCreation": "executes when note is created on backend. Use this relation if you want to run the script for all notes created under a specific subtree. In that case, create it on the subtree root note and make it inheritable. A new note created within the subtree (any depth) will trigger the script.",
+        "runOnChildNoteCreation": "executes when new note is created under the note where this relation is defined",
         "runOnNoteTitleChange": "executes when note title is changed (includes note creation as well)",
-        "runOnNoteChange": "executes when note is changed (includes note creation as well)",
-        "runOnChildNoteCreation": "executes when new note is created under this note",
-        "runOnAttributeCreation": "executes when new attribute is created under this note",
-        "runOnAttributeChange": "executes when attribute is changed under this note",
-        "template": "attached note's attributes will be inherited even without parent-child relationship. See template for details.",
+        "runOnNoteContentChange": "executes when note content is changed (includes note creation as well).",
+        "runOnNoteChange": "executes when note is changed (includes note creation as well). Does not include content changes",
+        "runOnNoteDeletion": "executes when note is being deleted",
+        "runOnBranchCreation": "executes when a branch is created. Branch is a link between parent note and child note and is created e.g. when cloning or moving note.",
+        "runOnBranchChange": "executes when a branch is updated.",
+        "runOnBranchDeletion": "executes when a branch is deleted. Branch is a link between parent note and child note and is deleted e.g. when moving note (old branch/link is deleted).",
+        "runOnAttributeCreation": "executes when new attribute is created for the note which defines this relation",
+        "runOnAttributeChange": " executes when the attribute is changed of a note which defines this relation. This is triggered also when the attribute is deleted",
+        "template": "note's attributes will be inherited even without a parent-child relationship, note's content and subtree will be added to instance notes if empty. See documentation for details.",
+        "inherit": "note's attributes will be inherited even without a parent-child relationship. See template relation for a similar concept. See attribute inheritance in the documentation.",
         "renderNote": 'notes of type "render HTML note" will be rendered using a code note (HTML or script) and it is necessary to point using this relation to which note should be rendered',
         "widget": "target of this relation will be executed and rendered as a widget in the sidebar",
         "shareCss": "CSS note which will be injected into the share page. CSS note must be in the shared sub-tree as well. Consider using 'shareHiddenFromTree' and 'shareOmitDefaultCss' as well.",
         "shareJs": "JavaScript note which will be injected into the share page. JS note must be in the shared sub-tree as well. Consider using 'shareHiddenFromTree'.",
+        "shareTemplate": "Embedded JavaScript note that will be used as the template for displaying the shared note. Falls back to the default template. Consider using 'shareHiddenFromTree'.",
         "shareFavicon": "Favicon note to be set in the shared page. Typically you want to set it to share root and make it inheritable. Favicon note must be in the shared sub-tree as well. Consider using 'shareHiddenFromTree'.",
     }
 };
@@ -248,14 +291,18 @@ export default class AttributeDetailWidget extends NoteContextAwareWidget {
 
         this.$widget = $(TPL);
 
-        utils.bindElShortcut(this.$widget, 'ctrl+return', () => this.saveAndClose());
-        utils.bindElShortcut(this.$widget, 'esc', () => this.cancelAndClose());
+        shortcutService.bindElShortcut(this.$widget, 'ctrl+return', () => this.saveAndClose());
+        shortcutService.bindElShortcut(this.$widget, 'esc', () => this.cancelAndClose());
 
 
         this.$title = this.$widget.find('.attr-detail-title');
 
         this.$inputName = this.$widget.find('.attr-input-name');
-        this.$inputName.on('keyup', () => this.userEditedAttribute());
+        this.$inputName.on('input', ev => {
+            if (!ev.originalEvent?.isComposing) { // https://github.com/zadam/trilium/pull/3812
+                this.userEditedAttribute();
+            }
+        });
         this.$inputName.on('change', () => this.userEditedAttribute());
         this.$inputName.on('autocomplete:closed', () => this.userEditedAttribute());
 
@@ -269,7 +316,11 @@ export default class AttributeDetailWidget extends NoteContextAwareWidget {
 
         this.$rowValue = this.$widget.find('.attr-row-value');
         this.$inputValue = this.$widget.find('.attr-input-value');
-        this.$inputValue.on('keyup', () => this.userEditedAttribute());
+        this.$inputValue.on('input', ev => {
+            if (!ev.originalEvent?.isComposing) { // https://github.com/zadam/trilium/pull/3812
+                this.userEditedAttribute();
+            }
+        });
         this.$inputValue.on('change', () => this.userEditedAttribute());
         this.$inputValue.on('autocomplete:closed', () => this.userEditedAttribute());
         this.$inputValue.on('focus', () => {
@@ -283,6 +334,10 @@ export default class AttributeDetailWidget extends NoteContextAwareWidget {
         this.$rowPromoted = this.$widget.find('.attr-row-promoted');
         this.$inputPromoted = this.$widget.find('.attr-input-promoted');
         this.$inputPromoted.on('change', () => this.userEditedAttribute());
+
+        this.$rowPromotedAlias = this.$widget.find('.attr-row-promoted-alias');
+        this.$inputPromotedAlias = this.$widget.find('.attr-input-promoted-alias');
+        this.$inputPromotedAlias.on('change', () => this.userEditedAttribute());
 
         this.$rowMultiplicity = this.$widget.find('.attr-row-multiplicity');
         this.$inputMultiplicity = this.$widget.find('.attr-input-multiplicity');
@@ -298,7 +353,11 @@ export default class AttributeDetailWidget extends NoteContextAwareWidget {
 
         this.$rowInverseRelation = this.$widget.find('.attr-row-inverse-relation');
         this.$inputInverseRelation = this.$widget.find('.attr-input-inverse-relation');
-        this.$inputInverseRelation.on('keyup', () => this.userEditedAttribute());
+        this.$inputInverseRelation.on('input', ev => {
+            if (!ev.originalEvent?.isComposing) { // https://github.com/zadam/trilium/pull/3812
+                this.userEditedAttribute();
+            }
+        });
 
         this.$rowTargetNote = this.$widget.find('.attr-row-target-note');
         this.$inputTargetNote = this.$widget.find('.attr-input-target-note');
@@ -395,7 +454,7 @@ export default class AttributeDetailWidget extends NoteContextAwareWidget {
                 .empty()
                 .append(attribute.type === 'label' ? 'Label' : 'Relation')
                 .append(' is owned by note ')
-                .append(await linkService.createNoteLink(attribute.noteId))
+                .append(await linkService.createLink(attribute.noteId))
         }
 
         this.$inputName
@@ -408,6 +467,11 @@ export default class AttributeDetailWidget extends NoteContextAwareWidget {
         this.$rowPromoted.toggle(['label-definition', 'relation-definition'].includes(this.attrType));
         this.$inputPromoted
             .prop("checked", !!definition.isPromoted)
+            .attr('disabled', () => !isOwned);
+
+        this.$rowPromotedAlias.toggle(!!definition.isPromoted);
+        this.$inputPromotedAlias
+            .val(definition.promotedAlias)
             .attr('disabled', () => !isOwned);
 
         this.$rowMultiplicity.toggle(['label-definition', 'relation-definition'].includes(this.attrType));
@@ -556,10 +620,11 @@ export default class AttributeDetailWidget extends NoteContextAwareWidget {
 
             const displayedResults = results.length <= DISPLAYED_NOTES ? results : results.slice(0, DISPLAYED_NOTES);
             const displayedNotes = await froca.getNotes(displayedResults.map(res => res.noteId));
+            const hoistedNoteId = appContext.tabManager.getActiveContext()?.hoistedNoteId;
 
             for (const note of displayedNotes) {
-                const notePath = treeService.getSomeNotePath(note);
-                const $noteLink = await linkService.createNoteLink(notePath, {showNotePath: true});
+                const notePath = note.getBestNotePathString(hoistedNoteId);
+                const $noteLink = await linkService.createLink(notePath, {showNotePath: true});
 
                 this.$relatedNotesList.append(
                     $("<li>").append($noteLink)
@@ -603,9 +668,9 @@ export default class AttributeDetailWidget extends NoteContextAwareWidget {
         }
 
         if (this.attrType === 'label-definition') {
-            attrName = 'label:' + attrName;
+            attrName = `label:${attrName}`;
         } else if (this.attrType === 'relation-definition') {
-            attrName = 'relation:' + attrName;
+            attrName = `relation:${attrName}`;
         }
 
         this.attribute.name = attrName;
@@ -629,6 +694,10 @@ export default class AttributeDetailWidget extends NoteContextAwareWidget {
 
         if (this.$inputPromoted.is(":checked")) {
             props.push("promoted");
+
+            if (this.$inputPromotedAlias.val() !== '') {
+                props.push(`alias=${this.$inputPromotedAlias.val()}`);
+            }
         }
 
         props.push(this.$inputMultiplicity.val());
@@ -637,17 +706,19 @@ export default class AttributeDetailWidget extends NoteContextAwareWidget {
             props.push(this.$inputLabelType.val());
 
             if (this.$inputLabelType.val() === 'number' && this.$inputNumberPrecision.val() !== '') {
-                props.push('precision=' + this.$inputNumberPrecision.val());
+                props.push(`precision=${this.$inputNumberPrecision.val()}`);
             }
         } else if (this.attrType === 'relation-definition' && this.$inputInverseRelation.val().trim().length > 0) {
             const inverseRelationName = this.$inputInverseRelation.val();
 
-            props.push("inverse=" + utils.filterAttributeName(inverseRelationName));
+            props.push(`inverse=${utils.filterAttributeName(inverseRelationName)}`);
         }
 
         this.$rowNumberPrecision.toggle(
             this.attrType === 'label-definition'
             && this.$inputLabelType.val() === 'number');
+
+        this.$rowPromotedAlias.toggle(this.$inputPromoted.is(":checked"));
 
         return props.join(",");
     }
@@ -656,11 +727,10 @@ export default class AttributeDetailWidget extends NoteContextAwareWidget {
         this.toggleInt(false);
     }
 
-    createNoteLink(noteId) {
+    createLink(noteId) {
         return $("<a>", {
-            href: '#' + noteId,
-            class: 'reference-link',
-            'data-note-path': noteId
+            href: `#root/${noteId}`,
+            class: 'reference-link'
         });
     }
 

@@ -2,20 +2,18 @@
 
 const ini = require('ini');
 const fs = require('fs');
-const dataDir = require('./data_dir');
+const dataDir = require('./data_dir.js');
 const path = require('path');
-const resourceDir = require('./resource_dir');
+const resourceDir = require('./resource_dir.js');
 
 const configSampleFilePath = path.resolve(resourceDir.RESOURCE_DIR, "config-sample.ini");
 
-const configFilePath = dataDir.TRILIUM_DATA_DIR + '/config.ini';
-
-if (!fs.existsSync(configFilePath)) {
+if (!fs.existsSync(dataDir.CONFIG_INI_PATH)) {
     const configSample = fs.readFileSync(configSampleFilePath).toString('utf8');
 
-    fs.writeFileSync(configFilePath, configSample);
+    fs.writeFileSync(dataDir.CONFIG_INI_PATH, configSample);
 }
 
-const config = ini.parse(fs.readFileSync(configFilePath, 'utf-8'));
+const config = ini.parse(fs.readFileSync(dataDir.CONFIG_INI_PATH, 'utf-8'));
 
 module.exports = config;

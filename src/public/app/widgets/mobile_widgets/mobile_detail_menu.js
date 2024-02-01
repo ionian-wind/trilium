@@ -1,6 +1,6 @@
 import BasicWidget from "../basic_widget.js";
-import appContext from "../../services/app_context.js";
-import contextMenu from "../../services/context_menu.js";
+import appContext from "../../components/app_context.js";
+import contextMenu from "../../menus/context_menu.js";
 import noteCreateService from "../../services/note_create.js";
 import branchService from "../../services/branches.js";
 import treeService from "../../services/tree.js";
@@ -18,9 +18,9 @@ class MobileDetailMenuWidget extends BasicWidget {
                 x: e.pageX,
                 y: e.pageY,
                 items: [
-                    { title: "Insert child note", command: "insertChildNote", uiIcon: "plus",
+                    { title: "Insert child note", command: "insertChildNote", uiIcon: "bx bx-plus",
                         enabled: note.type !== 'search' },
-                    { title: "Delete this note", command: "delete", uiIcon: "trash",
+                    { title: "Delete this note", command: "delete", uiIcon: "bx bx-trash",
                         enabled: note.noteId !== 'root' }
                 ],
                 selectMenuItemHandler: async ({command}) => {
@@ -29,10 +29,10 @@ class MobileDetailMenuWidget extends BasicWidget {
                     }
                     else if (command === "delete") {
                         const notePath = appContext.tabManager.getActiveContextNotePath();
-                        const branchId = await treeService.getBranchIdFromNotePath(notePath);
+                        const branchId = await treeService.getBranchIdFromUrl(notePath);
 
                         if (!branchId) {
-                            throw new Error(`Cannot get branchId for notePath ${notePath}`);
+                            throw new Error(`Cannot get branchId for notePath '${notePath}'`);
                         }
 
                         if (await branchService.deleteNotes([branchId])) {
@@ -40,7 +40,7 @@ class MobileDetailMenuWidget extends BasicWidget {
                         }
                     }
                     else {
-                        throw new Error("Unrecognized command " + command);
+                        throw new Error(`Unrecognized command ${command}`);
                     }
                 }
             });

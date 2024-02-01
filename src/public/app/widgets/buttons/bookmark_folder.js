@@ -8,7 +8,7 @@ const DROPDOWN_TPL = `
             min-width: 400px;
             max-height: 500px;
             padding: 7px 15px 0 15px;
-            font-size: 110%;
+            font-size: 1.2rem;
             overflow: auto;
         }
         
@@ -44,7 +44,7 @@ const DROPDOWN_TPL = `
 
 export default class BookmarkFolderWidget extends RightDropdownButtonWidget {
     constructor(note) {
-        super(note.getIcon(), note.title, DROPDOWN_TPL);
+        super(note.title, note.getIcon(), DROPDOWN_TPL);
 
         this.note = note;
     }
@@ -66,7 +66,7 @@ export default class BookmarkFolderWidget extends RightDropdownButtonWidget {
         };
 
         this.$parentNote.append(
-            (await linkService.createNoteLink(this.note.noteId, linkOptions))
+            (await linkService.createLink(this.note.noteId, linkOptions))
                 .addClass("note-link")
         );
 
@@ -74,7 +74,7 @@ export default class BookmarkFolderWidget extends RightDropdownButtonWidget {
             this.$childrenNotes.append(
                 $("<li>")
                     .append(
-                        (await linkService.createNoteLink(childNote.noteId, linkOptions))
+                        (await linkService.createLink(childNote.noteId, linkOptions))
                             .addClass("note-link")
                     )
             );

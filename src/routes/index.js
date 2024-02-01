@@ -1,19 +1,21 @@
 "use strict";
 
-const sql = require('../services/sql');
-const attributeService = require('../services/attributes');
-const config = require('../services/config');
-const optionService = require('../services/options');
-const log = require('../services/log');
-const env = require('../services/env');
-const utils = require('../services/utils');
-const protectedSessionService = require("../services/protected_session");
+const sql = require('../services/sql.js');
+const attributeService = require('../services/attributes.js');
+const config = require('../services/config.js');
+const optionService = require('../services/options.js');
+const log = require('../services/log.js');
+const env = require('../services/env.js');
+const utils = require('../services/utils.js');
+const protectedSessionService = require('../services/protected_session.js');
 const packageJson = require('../../package.json');
+const assetPath = require('../services/asset_path.js');
+const appPath = require('../services/app_path.js');
 
 function index(req, res) {
-    const options = optionService.getOptionsMap();
+    const options = optionService.getOptionMap();
 
-    let view = (!utils.isElectron() && req.cookies['trilium-device'] === 'mobile')
+    const view = (!utils.isElectron() && req.cookies['trilium-device'] === 'mobile')
         ? 'mobile'
         : 'desktop';
 
@@ -32,29 +34,26 @@ function index(req, res) {
         instanceName: config.General ? config.General.instanceName : null,
         appCssNoteIds: getAppCssNoteIds(),
         isDev: env.isDev(),
-        isMainWindow: !req.query.extra,
-        extraHoistedNoteId: req.query.extraHoistedNoteId,
+        isMainWindow: !req.query.extraWindow,
         isProtectedSessionAvailable: protectedSessionService.isProtectedSessionAvailable(),
         maxContentWidth: parseInt(options.maxContentWidth),
-        triliumVersion: packageJson.version
+        triliumVersion: packageJson.version,
+        assetPath: assetPath,
+        appPath: appPath
     });
 }
 
 function getThemeCssUrl(theme) {
     if (theme === 'light') {
         return false; // light theme is always loaded as baseline
-    }
-
-    if (theme === 'dark') {
-        return `stylesheets/theme-dark.css`;
-    }
-    else {
+    } else if (theme === 'dark') {
+        return `${assetPath}/stylesheets/theme-dark.css`;
+    } else {
         const themeNote = attributeService.getNoteWithLabel('appTheme', theme);
 
         if (themeNote) {
             return `api/notes/download/${themeNote.noteId}`;
-        }
-        else {
+        } else {
             return false; // baseline light theme
         }
     }

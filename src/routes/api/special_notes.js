@@ -1,10 +1,10 @@
 "use strict";
 
-const dateNoteService = require('../../services/date_notes');
-const sql = require('../../services/sql');
-const cls = require('../../services/cls');
-const specialNotesService = require('../../services/special_notes');
-const becca = require('../../becca/becca');
+const dateNoteService = require('../../services/date_notes.js');
+const sql = require('../../services/sql.js');
+const cls = require('../../services/cls.js');
+const specialNotesService = require('../../services/special_notes.js');
+const becca = require('../../becca/becca.js');
 
 function getInboxNote(req) {
     return specialNotesService.getInboxNote(req.params.date);
@@ -66,6 +66,21 @@ function getHoistedNote() {
     return becca.getNote(cls.getHoistedNoteId());
 }
 
+function createLauncher(req) {
+    return specialNotesService.createLauncher({
+        parentNoteId: req.params.parentNoteId,
+        launcherType: req.params.launcherType
+    });
+}
+
+function resetLauncher(req) {
+    return specialNotesService.resetLauncher(req.params.noteId);
+}
+
+function createOrUpdateScriptLauncherFromApi(req) {
+    return specialNotesService.createOrUpdateScriptLauncherFromApi(req.body);
+}
+
 module.exports = {
     getInboxNote,
     getDayNote,
@@ -76,5 +91,8 @@ module.exports = {
     createSqlConsole,
     saveSqlConsole,
     createSearchNote,
-    saveSearchNote
+    saveSearchNote,
+    createLauncher,
+    resetLauncher,
+    createOrUpdateScriptLauncherFromApi
 };

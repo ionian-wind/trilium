@@ -1,6 +1,6 @@
 import noteAutocompleteService from '../../services/note_autocomplete.js';
 import TypeWidget from "./type_widget.js";
-import appContext from "../../services/app_context.js";
+import appContext from "../../components/app_context.js";
 import searchService from "../../services/search.js";
 
 const TPL = `
@@ -63,32 +63,28 @@ export default class EmptyTypeWidget extends TypeWidget {
                 appContext.tabManager.getActiveContext().setNote(suggestion.notePath);
             });
 
-        noteAutocompleteService.showRecentNotes(this.$autoComplete);
-
         this.$workspaceNotes = this.$widget.find('.workspace-notes');
 
         super.doRender();
     }
 
     async doRefresh(note) {
-        const workspaceNotes = await searchService.searchForNotes('#workspace');
+        const workspaceNotes = await searchService.searchForNotes('#workspace #!template');
 
         this.$workspaceNotes.empty();
 
         for (const workspaceNote of workspaceNotes) {
             this.$workspaceNotes.append(
                 $('<div class="workspace-note">')
-                    .append($("<div>").addClass(workspaceNote.getIcon() + " workspace-icon"))
-                    .append($("<div>").append(workspaceNote.title))
-                    .attr("title", "Enter workspace " + workspaceNote.title)
+                    .append($("<div>").addClass(`${workspaceNote.getIcon()} workspace-icon`))
+                    .append($("<div>").text(workspaceNote.title))
+                    .attr("title", `Enter workspace ${workspaceNote.title}`)
                     .on('click', () => this.triggerCommand('hoistNote', {noteId: workspaceNote.noteId}))
             );
         }
 
-        if (workspaceNotes.length === 0) {
-            this.$autoComplete
-                .trigger('focus')
-                .trigger('select');
-        }
+        this.$autoComplete
+            .trigger('focus')
+            .trigger('select');
     }
 }

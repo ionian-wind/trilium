@@ -6,7 +6,7 @@ async function renderAttribute(attribute, renderIsInheritable) {
     const $attr = $("<span>");
 
     if (attribute.type === 'label') {
-        $attr.append(document.createTextNode('#' + attribute.name + isInheritable));
+        $attr.append(document.createTextNode(`#${attribute.name}${isInheritable}`));
 
         if (attribute.value) {
             $attr.append('=');
@@ -17,13 +17,13 @@ async function renderAttribute(attribute, renderIsInheritable) {
             return $attr;
         }
 
-        // when the relation has just been created then it might not have a value
+        // when the relation has just been created, then it might not have a value
         if (attribute.value) {
-            $attr.append(document.createTextNode('~' + attribute.name + isInheritable + "="));
-            $attr.append(await createNoteLink(attribute.value));
+            $attr.append(document.createTextNode(`~${attribute.name}${isInheritable}=`));
+            $attr.append(await createLink(attribute.value));
         }
     } else {
-        ws.logError("Unknown attr type: " + attribute.type);
+        ws.logError(`Unknown attr type: ${attribute.type}`);
     }
 
     return $attr;
@@ -34,20 +34,20 @@ function formatValue(val) {
         return val;
     }
     else if (!val.includes('"')) {
-        return '"' + val + '"';
+        return `"${val}"`;
     }
     else if (!val.includes("'")) {
-        return "'" + val + "'";
+        return `'${val}'`;
     }
     else if (!val.includes("`")) {
-        return "`" + val + "`";
+        return `\`${val}\``;
     }
     else {
-        return '"' + val.replace(/"/g, '\\"') + '"';
+        return `"${val.replace(/"/g, '\\"')}"`;
     }
 }
 
-async function createNoteLink(noteId) {
+async function createLink(noteId) {
     const note = await froca.getNote(noteId);
 
     if (!note) {
@@ -55,9 +55,8 @@ async function createNoteLink(noteId) {
     }
 
     return $("<a>", {
-        href: '#' + noteId,
-        class: 'reference-link',
-        'data-note-path': noteId
+        href: `#root/${noteId}`,
+        class: 'reference-link'
     })
         .text(note.title);
 }
@@ -83,6 +82,7 @@ const HIDDEN_ATTRIBUTES = [
     'originalFileName',
     'fileSize',
     'template',
+    'inherit',
     'cssClass',
     'iconClass',
     'pageSize',

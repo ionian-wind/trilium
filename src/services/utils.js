@@ -7,7 +7,6 @@ const escape = require('escape-html');
 const sanitize = require("sanitize-filename");
 const mimeTypes = require('mime-types');
 const path = require('path');
-const log = require('./log');
 
 function newEntityId() {
     return randomString(12);
@@ -25,10 +24,30 @@ function md5(content) {
     return crypto.createHash('md5').update(content).digest('hex');
 }
 
+function hashedBlobId(content) {
+    if (content === null || content === undefined) {
+        content = "";
+    }
+
+    // sha512 is faster than sha256
+    const base64Hash = crypto.createHash('sha512').update(content).digest('base64');
+
+    // we don't want such + and / in the IDs
+    const kindaBase62Hash = base64Hash
+        .replaceAll('+', 'X')
+        .replaceAll('/', 'Y');
+
+    // 20 characters of base62 gives us ~120 bit of entropy which is plenty enough
+    return kindaBase62Hash.substr(0, 20);
+}
+
 function toBase64(plainText) {
     return Buffer.from(plainText).toString('base64');
 }
 
+/**
+ * @returns {Buffer}
+ */
 function fromBase64(encodedText) {
     return Buffer.from(encodedText, 'base64');
 }
@@ -44,6 +63,8 @@ function isElectron() {
 }
 
 function hash(text) {
+    text = text.normalize();
+
     return crypto.createHash('sha1').update(text).digest('base64');
 }
 
@@ -53,30 +74,6 @@ function isEmptyOrWhitespace(str) {
 
 function sanitizeSqlIdentifier(str) {
     return str.replace(/[^A-Za-z0-9_]/g, "");
-}
-
-function prepareSqlForLike(prefix, str, suffix) {
-    const value = str
-        .replace(/\\/g, "\\\\")
-        .replace(/'/g, "''")
-        .replace(/_/g, "\\_")
-        .replace(/%/g, "\\%");
-
-    return `'${prefix}${value}${suffix}' ESCAPE '\\'`;
-}
-
-function stopWatch(what, func, timeLimit = 0) {
-    const start = Date.now();
-
-    const ret = func();
-
-    const tookMs = Date.now() - start;
-
-    if (tookMs >= timeLimit) {
-        log.info(`${what} took ${tookMs}ms`);
-    }
-
-    return ret;
 }
 
 function escapeHtml(str) {
@@ -101,10 +98,6 @@ function toObject(array, fn) {
 
 function stripTags(text) {
     return text.replace(/<(?:.|\n)*?>/gm, '');
-}
-
-function intersection(a, b) {
-    return a.filter(value => b.indexOf(value) !== -1);
 }
 
 function union(a, b) {
@@ -149,7 +142,7 @@ function sanitizeFilenameForHeader(filename) {
         sanitizedFilename = "file";
     }
 
-    return encodeURIComponent(sanitizedFilename)
+    return encodeURIComponent(sanitizedFilename);
 }
 
 function getContentDisposition(filename) {
@@ -168,7 +161,7 @@ const STRING_MIME_TYPES = [
 
 function isStringNote(type, mime) {
     // render and book are string note in the sense that they are expected to contain empty string
-    return ["text", "code", "relation-map", "search", "render", "book", "mermaid"].includes(type)
+    return ["text", "code", "relationMap", "search", "render", "book", "mermaid", "canvas"].includes(type)
         || mime.startsWith('text/')
         || STRING_MIME_TYPES.includes(mime);
 }
@@ -183,45 +176,45 @@ function replaceAll(string, replaceWhat, replaceWith) {
     return string.replace(new RegExp(quotedReplaceWhat, "g"), replaceWith);
 }
 
-function formatDownloadTitle(filename, type, mime) {
-    if (!filename) {
-        filename = "untitled";
+function formatDownloadTitle(fileName, type, mime) {
+    if (!fileName) {
+        fileName = "untitled";
     }
 
-    filename = sanitize(filename);
+    fileName = sanitize(fileName);
 
     if (type === 'text') {
-        return filename + '.html';
-    } else if (['relation-map', 'search'].includes(type)) {
-        return filename + '.json';
+        return `${fileName}.html`;
+    } else if (['relationMap', 'canvas', 'search'].includes(type)) {
+        return `${fileName}.json`;
     } else {
         if (!mime) {
-            return filename;
+            return fileName;
         }
 
         mime = mime.toLowerCase();
-        const filenameLc = filename.toLowerCase();
+        const filenameLc = fileName.toLowerCase();
         const extensions = mimeTypes.extensions[mime];
 
         if (!extensions || extensions.length === 0) {
-            return filename;
+            return fileName;
         }
 
         for (const ext of extensions) {
-            if (filenameLc.endsWith('.' + ext)) {
-                return filename;
+            if (filenameLc.endsWith(`.${ext}`)) {
+                return fileName;
             }
         }
 
         if (mime === 'application/octet-stream') {
             // we didn't find any good guess for this one, it will be better to just return
-            // the current name without fake extension. It's possible that the title still preserves to correct
+            // the current name without a fake extension. It's possible that the title still preserves the correct
             // extension too
 
-            return filename;
+            return fileName;
         }
 
-        return filename + '.' + extensions[0];
+        return `${fileName}.${extensions[0]}`;
     }
 }
 
@@ -241,7 +234,7 @@ function getNoteTitle(filePath, replaceUnderscoresWithSpaces, noteMeta) {
         return noteMeta.title;
     } else {
         const basename = path.basename(removeTextFileExtension(filePath));
-        if(replaceUnderscoresWithSpaces) {
+        if (replaceUnderscoresWithSpaces) {
             return basename.replace(/_/g, ' ').trim();
         }
         return basename;
@@ -291,6 +284,10 @@ function deferred() {
 }
 
 function removeDiacritic(str) {
+    if (!str) {
+        return "";
+    }
+    str = str.toString();
     return str.normalize("NFD").replace(/\p{Diacritic}/gu, "");
 }
 
@@ -298,8 +295,18 @@ function normalize(str) {
     return removeDiacritic(str).toLowerCase();
 }
 
-function filterAttributeName(name) {
-    return name.replace(/[^\p{L}\p{N}_:]/ug, "");
+function toMap(list, key) {
+    const map = {};
+
+    for (const el of list) {
+        map[el[key]] = el;
+    }
+
+    return map;
+}
+
+function isString(x) {
+    return Object.prototype.toString.call(x) === "[object String]";
 }
 
 module.exports = {
@@ -314,17 +321,13 @@ module.exports = {
     hash,
     isEmptyOrWhitespace,
     sanitizeSqlIdentifier,
-    prepareSqlForLike,
-    stopWatch,
     escapeHtml,
     unescapeHtml,
     toObject,
     stripTags,
-    intersection,
     union,
     escapeRegExp,
     crash,
-    sanitizeFilenameForHeader,
     getContentDisposition,
     isStringNote,
     quoteRegex,
@@ -336,5 +339,7 @@ module.exports = {
     deferred,
     removeDiacritic,
     normalize,
-    filterAttributeName
+    hashedBlobId,
+    toMap,
+    isString
 };

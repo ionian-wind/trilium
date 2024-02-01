@@ -1,7 +1,8 @@
 import utils from "../../services/utils.js";
-import toastService from "../../services/toast.js";
 import TypeWidget from "./type_widget.js";
 import libraryLoader from "../../services/library_loader.js";
+import imageContextMenuService from "../../menus/image_context_menu.js";
+import imageService from "../../services/image.js";
 
 const TPL = `
 <div class="note-detail-image note-detail-printable">
@@ -44,54 +45,37 @@ class ImageTypeWidget extends TypeWidget {
         this.$widget = $(TPL);
         this.$imageWrapper = this.$widget.find('.note-detail-image-wrapper');
         this.$imageView = this.$widget.find('.note-detail-image-view')
-            .attr("id", "image-view-" + utils.randomString(10));
+            .attr("id", `image-view-${utils.randomString(10)}`);
 
         libraryLoader.requireLibrary(libraryLoader.WHEEL_ZOOM).then(() => {
-            WZoom.create('#' + this.$imageView.attr("id"), {
-                maxScale: 10,
-                speed: 20,
+            WZoom.create(`#${this.$imageView.attr("id")}`, {
+                maxScale: 50,
+                speed: 1.3,
                 zoomOnClick: false
             });
         });
+
+        imageContextMenuService.setupContextMenu(this.$imageView);
 
         super.doRender();
     }
 
     async doRefresh(note) {
-        this.$imageView.prop("src", `api/images/${note.noteId}/${note.title}`);
+        this.$imageView.prop("src", utils.createImageSrcUrl(note));
     }
 
-    copyImageToClipboardEvent({ntxId}) {
+    copyImageReferenceToClipboardEvent({ntxId}) {
         if (!this.isNoteContext(ntxId)) {
             return;
         }
 
-        this.$imageWrapper.attr('contenteditable','true');
-
-        try {
-            this.selectImage(this.$imageWrapper.get(0));
-
-            const success = document.execCommand('copy');
-
-            if (success) {
-                toastService.showMessage("Image copied to the clipboard");
-            }
-            else {
-                toastService.showAndLogError("Could not copy the image to clipboard.");
-            }
-        }
-        finally {
-            window.getSelection().removeAllRanges();
-            this.$imageWrapper.removeAttr('contenteditable');
-        }
+        imageService.copyImageReferenceToClipboard(this.$imageWrapper);
     }
 
-    selectImage(element) {
-        const selection = window.getSelection();
-        const range = document.createRange();
-        range.selectNodeContents(element);
-        selection.removeAllRanges();
-        selection.addRange(range);
+    async entitiesReloadedEvent({loadResults}) {
+        if (loadResults.isNoteReloaded(this.noteId)) {
+            this.refresh();
+        }
     }
 }
 

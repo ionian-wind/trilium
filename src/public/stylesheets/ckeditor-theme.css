@@ -3,10 +3,14 @@ body {
 
     --ck-color-base-text: var(--main-text-color);
     --ck-color-base-foreground: var(--accented-background-color);
+    --ck-color-base-background: var(--main-background-color);
     --ck-color-focus-border: var(--main-border-color);
     --ck-color-text: var(--main-text-color);
     --ck-color-shadow-drop: var(--main-background-color);
     --ck-color-shadow-inner: var(--main-background-color);
+    --ck-color-table-caption-text: var(--main-text-color);
+    --ck-color-table-caption-background: var(--accented-background-color);
+    --ck-color-table-caption-highlighted-background: var(--accented-background-color);
 
     /* -- Overrides the default .ck-button class colors. ---------------------------------------- */
 

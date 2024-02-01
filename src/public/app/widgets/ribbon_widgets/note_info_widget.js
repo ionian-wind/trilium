@@ -1,5 +1,6 @@
 import NoteContextAwareWidget from "../note_context_aware_widget.js";
 import server from "../../services/server.js";
+import utils from "../../services/utils.js";
 
 const TPL = `
 <div class="note-info-widget">
@@ -105,12 +106,12 @@ export default class NoteInfoWidget extends NoteContextAwareWidget {
             this.$subTreeSize.empty().append($('<span class="bx bx-loader bx-spin"></span>'));
 
             const noteSizeResp = await server.get(`stats/note-size/${this.noteId}`);
-            this.$noteSize.text(this.formatSize(noteSizeResp.noteSize));
+            this.$noteSize.text(utils.formatSize(noteSizeResp.noteSize));
 
             const subTreeResp = await server.get(`stats/subtree-size/${this.noteId}`);
 
             if (subTreeResp.subTreeNoteCount > 1) {
-                this.$subTreeSize.text("(subtree size: " + this.formatSize(subTreeResp.subTreeSize) + ` in ${subTreeResp.subTreeNoteCount} notes)`);
+                this.$subTreeSize.text(`(subtree size: ${utils.formatSize(subTreeResp.subTreeSize)} in ${subTreeResp.subTreeNoteCount} notes)`);
             }
             else {
                 this.$subTreeSize.text("");
@@ -119,39 +120,27 @@ export default class NoteInfoWidget extends NoteContextAwareWidget {
     }
 
     async refreshWithNote(note) {
-        const noteComplement = await this.noteContext.getNoteComplement();
+        const metadata = await server.get(`notes/${this.noteId}/metadata`);
 
         this.$noteId.text(note.noteId);
         this.$dateCreated
-            .text(noteComplement.dateCreated.substr(0, 16))
-            .attr("title", noteComplement.dateCreated);
+            .text(metadata.dateCreated.substr(0, 16))
+            .attr("title", metadata.dateCreated);
 
         this.$dateModified
-            .text(noteComplement.combinedDateModified.substr(0, 16))
-            .attr("title", noteComplement.combinedDateModified);
+            .text(metadata.dateModified.substr(0, 16))
+            .attr("title", metadata.dateModified);
 
         this.$type.text(note.type);
 
         if (note.mime) {
-            this.$mime.text('(' + note.mime + ')');
-        }
-        else {
+            this.$mime.text(`(${note.mime})`);
+        } else {
             this.$mime.empty();
         }
 
         this.$calculateButton.show();
         this.$noteSizesWrapper.hide();
-    }
-
-    formatSize(size) {
-        size = Math.max(Math.round(size / 1024), 1);
-
-        if (size < 1024) {
-            return `${size} KiB`;
-        }
-        else {
-            return `${Math.round(size / 102.4) / 10} MiB`;
-        }
     }
 
     entitiesReloadedEvent({loadResults}) {

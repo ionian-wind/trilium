@@ -1,6 +1,13 @@
 @font-face {
-    font-family: MontserratLight;
+    font-family: Montserrat;
     src: url(../fonts/Montserrat-Light.ttf);
+    font-weight: normal;
+}
+
+@font-face {
+    font-family: Montserrat;
+    src: url(../fonts/Montserrat-SemiBold.ttf);
+    font-weight: bold;
 }
 
 @font-face {
@@ -102,14 +109,18 @@ button.close:hover {
 
 .icon-action {
     border: 1px solid transparent;
-    border-radius: 3px;
     padding: 5px;
-    width: 35px;
+    width: 37px;
     height: 35px;
     cursor: pointer;
     font-size: 1.5em;
     color: var(--button-text-color);
     background: var(--button-background-color);
+    border-radius: var(--button-border-radius);
+}
+
+.icon-action-always-border {
+    border-color: var(--button-border-color);
 }
 
 .icon-action:hover:not(.disabled) {
@@ -169,17 +180,12 @@ div.ui-tooltip {
     float: right;
 }
 
-#note-source {
-    height: 98%;
-    width: 100%;
-    overflow: scroll;
-}
-
 .suppressed {
     display: none;
 }
 
 .dropdown-menu {
+    border: 1px solid var(--dropdown-border-color);
     color: var(--menu-text-color) !important;
     background-color: var(--menu-background-color) !important;
 }
@@ -189,9 +195,16 @@ div.ui-tooltip {
     pointer-events: none;
 }
 
+.dropdown-menu .disabled .disabled-tooltip {
+    pointer-events: all;
+    color: var(--menu-text-color);
+    cursor: help;
+}
+
 .dropdown-menu a:hover:not(.disabled), .dropdown-item:hover:not(.disabled) {
     color: var(--hover-item-text-color) !important;
     background-color: var(--hover-item-background-color) !important;
+    border-color: var(--hover-item-border-color) !important;
     cursor: pointer;
 }
 
@@ -210,17 +223,20 @@ div.ui-tooltip {
     padding-bottom: 0;
 }
 
-.dropdown-item {
+.dropdown-item, .dropdown-header {
     color: var(--menu-text-color) !important;
+    border: 1px solid transparent !important;
 }
 
 .dropdown-item.disabled, .dropdown-item.disabled kbd {
     color: #aaa !important;
 }
 
-.dropdown-item.active {
+.dropdown-item.active, .dropdown-item:focus {
     color: var(--active-item-text-color) !important;
     background-color: var(--active-item-background-color) !important;
+    border-color: var(--active-item-border-color) !important;
+    outline: none;
 }
 
 .CodeMirror {
@@ -241,8 +257,8 @@ body .CodeMirror {
     background-color: #eeeeee
 }
 
-.CodeMirror pre.CodeMirror-placeholder { 
-    color: #999 !important; 
+.CodeMirror pre.CodeMirror-placeholder {
+    color: #999 !important;
 }
 
 #sql-console-query {
@@ -359,7 +375,9 @@ pre:not(.CodeMirror-line) {
 
 .go-to-selected-note-button.disabled, .go-to-selected-note-button.disabled:hover {
     cursor: inherit;
-    color: var(--button-disabled-background-color) !important;
+    color: var(--button-disabled-text-color) !important;
+    background-color: var(--button-disabled-background-color) !important;
+    text-decoration: none;
 }
 
 .note-autocomplete-input {
@@ -377,6 +395,51 @@ table.promoted-attributes-in-tooltip td, table.promoted-attributes-in-tooltip th
 
 .tooltip {
     font-size: var(--main-font-size) !important;
+}
+
+.bs-tooltip-bottom .arrow::before { border-bottom-color: var(--main-border-color) !important; }
+.bs-tooltip-top .arrow::before    { border-top-color: var(--main-border-color) !important; }
+.bs-tooltip-left .arrow::before   { border-left-color: var(--main-border-color) !important; }
+.bs-tooltip-right .arrow::before  { border-right-color: var(--main-border-color) !important; }
+
+.bs-tooltip-bottom .arrow::after { border-bottom-color: var(--tooltip-background-color) !important; }
+.bs-tooltip-top .arrow::after    { border-top-color: var(--tooltip-background-color) !important; }
+.bs-tooltip-left .arrow::after   { border-left-color: var(--tooltip-background-color) !important; }
+.bs-tooltip-right .arrow::after  { border-right-color: var(--tooltip-background-color) !important; }
+
+.tooltip .arrow::after {
+    position: absolute;
+    content: '';
+    border-color: transparent;
+    border-style: solid;
+}
+
+.bs-tooltip-auto[x-placement^='left'] .arrow::after,
+.bs-tooltip-left .arrow::after {
+    left: -1px;
+    border-width: 0.4rem 0 0.4rem 0.4rem;
+}
+
+.bs-tooltip-auto[x-placement^='bottom'] .arrow::after,
+.bs-tooltip-bottom .arrow::after {
+    bottom: -1px;
+    border-width: 0 0.4rem 0.4rem;
+}
+
+.bs-tooltip-auto[x-placement^='right'] .arrow::after,
+.bs-tooltip-right .arrow::after {
+    right: -1px;
+    border-width: 0.4rem 0.4rem 0.4rem 0;
+}
+
+.bs-tooltip-auto[x-placement^='top'] .arrow::after,
+.bs-tooltip-top .arrow::after {
+    top: -1px;
+    border-width: 0.4rem 0.4rem 0;
+}
+
+.note-tooltip.tooltip .arrow {
+    display: none;
 }
 
 .tooltip-inner {
@@ -408,7 +471,7 @@ table.promoted-attributes-in-tooltip td, table.promoted-attributes-in-tooltip th
 .note-tooltip-content {
     /* height needs to stay small because tooltip has problem when it can't fit to either top or bottom of the cursor */
     max-height: 300px;
-    overflow: hidden;
+    overflow: auto;
 }
 
 .note-tooltip-content .note-title-with-path .note-path {
@@ -441,6 +504,11 @@ table.promoted-attributes-in-tooltip td, table.promoted-attributes-in-tooltip th
     z-index: 2000 !important;
 }
 
+.algolia-autocomplete-container .aa-dropdown-menu {
+    position: inherit !important;
+    overflow: auto;
+}
+
 .algolia-autocomplete .aa-input, .algolia-autocomplete .aa-hint {
     width: 100%;
 }
@@ -457,20 +525,20 @@ table.promoted-attributes-in-tooltip td, table.promoted-attributes-in-tooltip th
     margin: 0;
 }
 
-.algolia-autocomplete .aa-dropdown-menu .aa-suggestion {
+.aa-dropdown-menu .aa-suggestion {
     cursor: pointer;
     padding: 5px;
     margin: 0;
 }
 
-.algolia-autocomplete .aa-dropdown-menu .aa-suggestion p {
+.aa-dropdown-menu .aa-suggestion p {
     padding: 0;
     margin: 0;
 }
 
-.algolia-autocomplete .aa-dropdown-menu .aa-suggestion.aa-cursor {
-    color: var(--hover-item-text-color);
-    background-color: var(--hover-item-background-color);
+.aa-dropdown-menu .aa-suggestion.aa-cursor {
+    color: var(--active-item-text-color);
+    background-color: var(--active-item-background-color);
 }
 
 .help-button {
@@ -536,25 +604,6 @@ div[data-notify="container"] {
     font-size: 150%;
 }
 
-#export-form .form-check {
-    padding-top: 10px;
-    padding-bottom: 10px;
-}
-
-#export-form .format-choice {
-    padding-left: 40px;
-    display: none;
-}
-
-#export-form #opml-versions {
-    padding-left: 60px;
-    display: none;
-}
-
-#export-form .form-check-label {
-    padding: 2px;
-}
-
 .ck-editor__is-empty.ck-content.ck-editor__editable::before {
     content: 'You can start writing note here ...';
     position: absolute;
@@ -615,11 +664,6 @@ a.external:not(.no-arrow):after, a[href^="http://"]:not(.no-arrow):after, a[href
 
 .modal-header {
     padding: 0.7rem 1rem 0 1rem !important; /* make modal header padding slightly smaller */
-}
-
-.floating-button {
-    position: absolute !important;
-    z-index: 100;
 }
 
 #toast-container {
@@ -683,25 +727,26 @@ a.external:not(.no-arrow):after, a[href^="http://"]:not(.no-arrow):after, a[href
     content: '' !important;
 }
 
-.include-note.box-size-small .include-note-content {
+/* Using data- attribute to support both CKEditor and readonly view */
+.include-note[data-box-size=small] .include-note-content {
     max-height: 10em;
     overflow: auto;
 }
 
-.include-note.box-size-small .include-note-content.type-pdf {
+.include-note[data-box-size=small] .include-note-content.type-pdf {
     height: 10em; /* PDF is rendered in iframe and must be sized absolutely */
 }
 
-.include-note.box-size-medium .include-note-content {
+.include-note[data-box-size=medium] .include-note-content {
     max-height: 20em;
     overflow: auto;
 }
 
-.include-note.box-size-medium .include-note-content.type-pdf .rendered-note-content {
+.include-note[data-box-size=medium] .include-note-content.type-pdf .rendered-content {
     height: 20em; /* PDF is rendered in iframe and must be sized absolutely */
 }
 
-.include-note.box-size-full .include-note-content.type-pdf .rendered-note-content {
+.include-note[data-box-size=full] .include-note-content.type-pdf .rendered-content {
     height: 50em; /* PDF is rendered in iframe and it's not possible to put full height so at least a large height */
 }
 
@@ -760,14 +805,17 @@ li.dropdown-submenu:hover > ul.dropdown-menu {
 }
 
 .dropdown-submenu {
-    position:relative;
+    position: relative;
 }
 
 .dropdown-submenu > .dropdown-menu {
     top: 0;
-    left: 100%;
-    margin-top: -6px;
+    left: calc(100% - 2px); /* -2px, otherwise there's a small gap between menu and submenu where the hover can disappear */
+    margin-top: -10px;
     min-width: 15rem;
+    /* to make submenu scrollable https://github.com/zadam/trilium/issues/3136 */
+    max-height: 600px;
+    overflow: auto;
 }
 
 /* rotate caret on hover */
@@ -778,7 +826,7 @@ li.dropdown-submenu:hover > ul.dropdown-menu {
 
 body {
     /* FF basic styling */
-    scrollbar-color: var(--active-item-background-color) var(--main-background-color);
+    scrollbar-color: var(--scrollbar-background-color) var(--main-background-color);
 }
 
 ::-webkit-scrollbar {
@@ -786,9 +834,9 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-    border-radius: 3px;
+    border-radius: 5px;
     border: 1px solid var(--scrollbar-border-color);
-    background-color: var(--main-background-color);
+    background-color: var(--scrollbar-background-color);
 }
 
 ::-webkit-scrollbar-corner {
@@ -864,6 +912,7 @@ body {
     box-shadow: 10px 10px 93px -25px black;
     padding: 10px 15px 10px 15px !important;
     width: 600px;
+    white-space: normal;
 }
 
 .help-dropdown .dropdown-menu pre {
@@ -872,15 +921,16 @@ body {
     margin: 10px;
 }
 
-#launcher-pane .icon-action {
+#launcher-pane .launcher-button {
     font-size: 150%;
     display: inline-block;
-    padding: 15px 15px;
+    padding: 13px 13px;
     cursor: pointer;
     border: none;
     color: var(--launcher-pane-text-color);
-    width: 53px;
+    background-color: var(--launcher-pane-background-color);
     height: 53px;
+    width: 100%;
 }
 
 #launcher-pane .icon-action:hover {
@@ -911,11 +961,13 @@ input {
     display: flex;
     flex-shrink: 0;
     flex-direction: column;
+    margin-left: 10px;
+    margin-right: 5px;
 }
 
 #right-pane .card-header {
     background: inherit;
-    padding: 6px 10px 3px 0;
+    padding: 6px 0 3px 0;
     width: 99%; /* to give minimal right margin */
     background-color: var(--button-background-color);
     border-color: var(--button-border-color);
@@ -924,9 +976,17 @@ input {
     border-style: solid;
     display: flex;
     justify-content: space-between;
+    align-items: baseline;
     font-weight: bold;
     text-transform: uppercase;
     color: var(--muted-text-color) !important;
+}
+
+#right-pane .card-header-buttons {
+    display: flex;
+    transform: scale(0.9);
+    position: relative;
+    top: 2px;
 }
 
 #right-pane .body-wrapper {
@@ -939,7 +999,6 @@ input {
     border: 0;
     height: 100%;
     overflow: auto;
-    max-height: 300px;
 }
 
 #right-pane .card-body ul {
@@ -961,4 +1020,82 @@ input {
 
 .note-split.full-content-width {
     max-width: 999999px;
+}
+
+button.close:hover {
+    text-shadow: none;
+    color: currentColor;
+}
+
+.hidden-no-content {
+    display: none;
+}
+
+.reference-link .bx {
+    position: relative;
+    top: 1px;
+    margin-right: 3px;
+}
+
+.options-section:first-of-type h4 {
+    margin-top: 0;
+}
+
+.options-section h4 {
+    margin-top: 25px;
+    margin-bottom: 15px;
+}
+
+.options-section h5 {
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
+
+.options-number-input {
+    text-align: right;
+    /* overriding settings from .form-control */
+    width: 10em !important;
+    flex-grow: 0 !important;
+}
+
+textarea {
+    cursor: auto;
+}
+
+.table thead th,
+.table td, .table th {
+    /* Fix center vertical alignment of table cells */
+    vertical-align: middle;
+}
+
+.ck-powered-by-balloon {
+    display: none !important;
+}
+
+.attachment-help-button {
+    font-size: xx-large;
+    border: 0;
+    background: none;
+    cursor: pointer;
+    color: var(--main-text-color);
+    margin-left: 20px;
+    position: relative;
+    top: 8px;
+}
+
+.jump-to-note-dialog .modal-header {
+    align-items: center;
+    padding-bottom: 1rem !important;
+}
+
+.jump-to-note-dialog .modal-body {
+    padding: 0;
+}
+
+.jump-to-note-results .aa-dropdown-menu {
+    max-height: 40vh;
+}
+
+.jump-to-note-results .aa-suggestions {
+    padding: 1rem;
 }

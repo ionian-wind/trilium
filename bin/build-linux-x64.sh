@@ -24,12 +24,10 @@ mv "./dist/Trilium Notes-linux-x64" $BUILD_DIR
 
 cp images/app-icons/png/128x128.png $BUILD_DIR/icon.png
 
-# removing software WebGL binaries because they are pretty huge and not necessary
-rm -r $BUILD_DIR/swiftshader
-
 cp bin/tpl/anonymize-database.sql $BUILD_DIR/
 
 cp -r dump-db $BUILD_DIR/
+rm -rf $BUILD_DIR/dump-db/node_modules
 
 cp bin/tpl/trilium-portable.sh $BUILD_DIR/
 chmod 755 $BUILD_DIR/trilium-portable.sh

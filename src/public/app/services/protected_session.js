@@ -2,7 +2,7 @@ import server from './server.js';
 import protectedSessionHolder from './protected_session_holder.js';
 import toastService from "./toast.js";
 import ws from "./ws.js";
-import appContext from "./app_context.js";
+import appContext from "../components/app_context.js";
 import froca from "./froca.js";
 import utils from "./utils.js";
 import options from "./options.js";
@@ -20,7 +20,7 @@ function enterProtectedSession() {
     const dfd = $.Deferred();
 
     if (!options.is("isPasswordSet")) {
-        import("../dialogs/password_not_set.js").then(dialog => dialog.show());
+        appContext.triggerCommand("showPasswordNotSet");
         return dfd;
     }
 
@@ -28,10 +28,10 @@ function enterProtectedSession() {
         dfd.resolve(false);
     }
     else {
-        // using deferred instead of promise because it allows resolving from outside
+        // using deferred instead of promise because it allows resolving from the outside
         protectedSessionDeferred = dfd;
 
-        import("../dialogs/protected_session.js").then(dialog => dialog.show());
+        appContext.triggerCommand("showProtectedSessionPasswordDialog");
     }
 
     return dfd.promise();
@@ -61,13 +61,13 @@ ws.subscribeToMessages(async message => {
     if (message.type === 'protectedSessionLogin') {
         await reloadData();
 
-    await appContext.triggerEvent('frocaReloaded');
+        await appContext.triggerEvent('frocaReloaded');
 
         appContext.triggerEvent('protectedSessionStarted');
 
-        if (protectedSessionDeferred !== null) {
-            import("../dialogs/protected_session.js").then(dialog => dialog.close());
+        appContext.triggerCommand("closeProtectedSessionPasswordDialog");
 
+        if (protectedSessionDeferred !== null) {
             protectedSessionDeferred.resolve(true);
             protectedSessionDeferred = null;
         }
@@ -88,7 +88,7 @@ async function protectNote(noteId, protect, includingSubtree) {
 function makeToast(message, protectingLabel, text) {
     return {
         id: message.taskId,
-        title: protectingLabel + " status",
+        title: `${protectingLabel} status`,
         message: text,
         icon: message.data.protect ? "check-shield" : "shield"
     };
@@ -105,9 +105,9 @@ ws.subscribeToMessages(async message => {
         toastService.closePersistent(message.taskId);
         toastService.showError(message.message);
     } else if (message.type === 'taskProgressCount') {
-        toastService.showPersistent(makeToast(message, protectingLabel,protectingLabel + " in progress: " + message.progressCount));
+        toastService.showPersistent(makeToast(message, protectingLabel,`${protectingLabel} in progress: ${message.progressCount}`));
     } else if (message.type === 'taskSucceeded') {
-        const toast = makeToast(message, protectingLabel, protectingLabel + " finished successfully.");
+        const toast = makeToast(message, protectingLabel, `${protectingLabel} finished successfully.`);
         toast.closeAfter = 3000;
 
         toastService.showPersistent(toast);

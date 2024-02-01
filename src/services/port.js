@@ -1,28 +1,27 @@
-const config = require('./config');
-const utils = require('./utils');
-const env = require('./env');
-const portscanner = require('portscanner');
+const config = require('./config.js');
+const utils = require('./utils.js');
+const env = require('./env.js');
+const dataDir = require('./data_dir.js');
 
-let environmentPort;
+function parseAndValidate(portStr, source) {
+    const portNum = parseInt(portStr);
+
+    if (isNaN(portNum) || portNum < 0 || portNum >= 65536) {
+        console.log(`FATAL ERROR: Invalid port value "${portStr}" from ${source}, should be an integer between 0 and 65536.`);
+        process.exit(-1);
+    }
+
+    return portNum;
+}
+
+let port;
 
 if (process.env.TRILIUM_PORT) {
-    environmentPort = parseInt(process.env.TRILIUM_PORT);
+    port = parseAndValidate(process.env.TRILIUM_PORT, "environment variable TRILIUM_PORT");
+} else if (utils.isElectron()) {
+    port = env.isDev() ? 37740 : 37840;
+} else {
+    port = parseAndValidate(config['Network']['port'] || '3000', `Network.port in ${dataDir.CONFIG_INI_PATH}`);
 }
 
-if (utils.isElectron()) {
-    module.exports = new Promise((resolve, reject) => {
-        const startingPort = environmentPort || (env.isDev() ? 37740 : 37840);
-
-        portscanner.findAPortNotInUse(startingPort, startingPort + 10, '127.0.0.1', function(error, port) {
-            if (error) {
-                reject(error);
-            }
-            else {
-                resolve(port);
-            }
-        })
-    });
-}
-else {
-    module.exports = Promise.resolve(environmentPort || config['Network']['port'] || '3000');
-}
+module.exports = port;

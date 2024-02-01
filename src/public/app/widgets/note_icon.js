@@ -1,5 +1,6 @@
 import NoteContextAwareWidget from "./note_context_aware_widget.js";
 import attributeService from "../services/attributes.js";
+import server from "../services/server.js";
 
 const TPL = `
 <div class="note-icon-widget dropdown">
@@ -92,11 +93,11 @@ export default class NoteIconWidget extends NoteContextAwareWidget {
         });
 
         this.$iconCategory = this.$widget.find("select[name='icon-category']");
-        this.$iconCategory.on('change', () => this.renderFilteredDropdown());
+        this.$iconCategory.on('change', () => this.renderDropdown());
         this.$iconCategory.on('click', e => e.stopPropagation());
 
         this.$iconSearch = this.$widget.find("input[name='icon-search']");
-        this.$iconSearch.on('input', () => this.renderFilteredDropdown());
+        this.$iconSearch.on('input', () => this.renderDropdown());
 
         this.$notePathList = this.$widget.find(".note-path-list");
         this.$widget.on('show.bs.dropdown', async () => {
@@ -119,7 +120,7 @@ export default class NoteIconWidget extends NoteContextAwareWidget {
     }
 
     async refreshWithNote(note) {
-        this.$icon.removeClass().addClass(note.getIcon() + " note-icon");
+        this.$icon.removeClass().addClass(`${note.getIcon()} note-icon`);
     }
 
     async entitiesReloadedEvent({loadResults}) {
@@ -128,7 +129,7 @@ export default class NoteIconWidget extends NoteContextAwareWidget {
             return;
         }
 
-        for (const attr of loadResults.getAttributes()) {
+        for (const attr of loadResults.getAttributeRows()) {
             if (attr.type === 'label'
                 && ['iconClass', 'workspaceIconClass'].includes(attr.name)
                 && attributeService.isAffecting(attr, this.note)) {
@@ -139,14 +140,10 @@ export default class NoteIconWidget extends NoteContextAwareWidget {
         }
     }
 
-    renderFilteredDropdown() {
-        const categoryId = parseInt(this.$iconCategory.find('option:selected').val());
-        const search = this.$iconSearch.val();
+    async renderDropdown() {
+        const iconToCount = await this.getIconToCountMap();
+        const {icons} = (await import('./icon_list.js')).default;
 
-        this.renderDropdown(categoryId, search);
-    }
-
-    async renderDropdown(categoryId, search) {
         this.$iconList.empty();
 
         if (this.getIconLabels().length > 0) {
@@ -161,39 +158,54 @@ export default class NoteIconWidget extends NoteContextAwareWidget {
             );
         }
 
-        const {icons} = (await import('./icon_list.js')).default;
+        const categoryId = parseInt(this.$iconCategory.find('option:selected').val());
+        const search = this.$iconSearch.val().trim().toLowerCase();
 
-        for (const icon of icons) {
+        const filteredIcons = icons.filter(icon => {
             if (categoryId && icon.category_id !== categoryId) {
-                continue;
+                return false;
             }
 
-            if (search && search.trim() && !icon.name.includes(search.trim().toLowerCase())) {
-                continue;
+            if (search) {
+                if (!icon.name.includes(search) && !icon.term?.find(t => t.includes(search))) {
+                    return false;
+                }
             }
 
-            this.$iconList.append(
-                $('<span>')
-                    .addClass(this.getIconClass(icon))
-                    .attr("title", icon.name)
-            );
+            return true;
+        });
+
+        filteredIcons.sort((a, b) => {
+            const countA = iconToCount[a.className] || 0;
+            const countB = iconToCount[b.className] || 0;
+
+            return countB - countA;
+        });
+
+        for (const icon of filteredIcons) {
+            this.$iconList.append(this.renderIcon(icon));
         }
+
+        this.$iconSearch.focus();
+    }
+
+    async getIconToCountMap() {
+        if (!this.iconToCountCache) {
+            this.iconToCountCache = server.get('other/icon-usage');
+            setTimeout(() => this.iconToCountCache = null, 20000); // invalidate cache after 20 seconds
+        }
+
+        return (await this.iconToCountCache).iconClassToCountMap;
+    }
+
+    renderIcon(icon) {
+        return $('<span>')
+            .addClass("bx " + icon.className)
+            .attr("title", icon.name);
     }
 
     getIconLabels() {
         return this.note.getOwnedLabels()
             .filter(label => ['workspaceIconClass', 'iconClass'].includes(label.name));
-    }
-
-    getIconClass(icon) {
-        if (icon.type_of_icon === 'LOGO') {
-            return "bx bxl-" + icon.name;
-        }
-        else if (icon.type_of_icon === 'SOLID') {
-            return "bx bxs-" + icon.name;
-        }
-        else {
-            return "bx bx-" + icon.name;
-        }
     }
 }

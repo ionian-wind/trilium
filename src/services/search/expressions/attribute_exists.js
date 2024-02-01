@@ -1,8 +1,8 @@
 "use strict";
 
-const NoteSet = require('../note_set');
-const becca = require('../../../becca/becca');
-const Expression = require('./expression');
+const NoteSet = require('../note_set.js');
+const becca = require('../../../becca/becca.js');
+const Expression = require('./expression.js');
 
 class AttributeExistsExp extends Expression {
     constructor(attributeType, attributeName, prefixMatch) {
@@ -10,10 +10,12 @@ class AttributeExistsExp extends Expression {
 
         this.attributeType = attributeType;
         this.attributeName = attributeName;
+        // template attr is used as a marker for templates, but it's not meant to be inherited
+        this.isTemplateLabel = this.attributeType === 'label' && (this.attributeName === 'template' || this.attributeName === 'workspacetemplate');
         this.prefixMatch = prefixMatch;
     }
 
-    execute(inputNoteSet) {
+    execute(inputNoteSet, executionContext, searchContext) {
         const attrs = this.prefixMatch
             ? becca.findAttributesWithPrefix(this.attributeType, this.attributeName)
             : becca.findAttributes(this.attributeType, this.attributeName);
@@ -23,11 +25,11 @@ class AttributeExistsExp extends Expression {
         for (const attr of attrs) {
             const note = attr.note;
 
-            if (attr.isInheritable) {
+            if (attr.isInheritable && !this.isTemplateLabel) {
                 resultNoteSet.addAll(note.getSubtreeNotesIncludingTemplated());
             }
-            else if (note.isTemplate()) {
-                resultNoteSet.addAll(note.getTemplatedNotes());
+            else if (note.isInherited() && !this.isTemplateLabel) {
+                resultNoteSet.addAll(note.getInheritingNotes());
             }
             else {
                 resultNoteSet.add(note);

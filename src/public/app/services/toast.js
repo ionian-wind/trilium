@@ -4,18 +4,19 @@ import utils from "./utils.js";
 function toast(options) {
     const $toast = $(`<div class="toast" role="alert" aria-live="assertive" aria-atomic="true">
     <div class="toast-header">
-        <strong class="mr-auto"><span class="bx bx-${options.icon}"></span> ${options.title}</strong>
+        <strong class="mr-auto"><span class="bx bx-${options.icon}"></span> <span class="toast-title"></span></strong>
         <button type="button" class="ml-2 mb-1 close" data-dismiss="toast" aria-label="Close">
             <span aria-hidden="true">&times;</span>
         </button>
     </div>
-    <div class="toast-body">
-        ${options.message}
-    </div>
+    <div class="toast-body"></div>
 </div>`);
 
+    $toast.find('.toast-title').text(options.title);
+    $toast.find('.toast-body').text(options.message);
+
     if (options.id) {
-        $toast.attr("id", "toast-" + options.id);
+        $toast.attr("id", `toast-${options.id}`);
     }
 
     $("#toast-container").append($toast);
@@ -33,7 +34,7 @@ function toast(options) {
 }
 
 function showPersistent(options) {
-    let $toast = $("#toast-" + options.id);
+    let $toast = $(`#toast-${options.id}`);
 
     if ($toast.length > 0) {
         $toast.find('.toast-body').html(options.message);
@@ -50,7 +51,7 @@ function showPersistent(options) {
 }
 
 function closePersistent(id) {
-    $("#toast-" + id).remove();
+    $(`#toast-${id}`).remove();
 }
 
 function showMessage(message, delay = 2000) {
@@ -83,6 +84,18 @@ function showError(message, delay = 10000) {
     });
 }
 
+function showErrorTitleAndMessage(title, message, delay = 10000) {
+    console.log(utils.now(), "error: ", message);
+
+    toast({
+        title: title,
+        icon: 'alert',
+        message: message,
+        autohide: true,
+        delay
+    });
+}
+
 function throwError(message) {
     ws.logError(message);
 
@@ -92,6 +105,7 @@ function throwError(message) {
 export default {
     showMessage,
     showError,
+    showErrorTitleAndMessage,
     showAndLogError,
     throwError,
     showPersistent,

@@ -8,9 +8,10 @@ class Expression {
     /**
      * @param {NoteSet} inputNoteSet
      * @param {object} executionContext
-     * @return {NoteSet}
+     * @param {SearchContext} searchContext
+     * @returns {NoteSet}
      */
-    execute(inputNoteSet, executionContext) {}
+    execute(inputNoteSet, executionContext, searchContext) {}
 }
 
 module.exports = Expression;

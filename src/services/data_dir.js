@@ -5,7 +5,7 @@
  * - if TRILIUM_DATA_DIR environment variable exists, then its value is used as the path
  * - if "trilium-data" dir exists directly in the home dir, then it is used
  * - based on OS convention, if the "app data directory" exists, we'll use or create "trilium-data" directory there
- * - as a fallback if previous step fails, we'll use home dir
+ * - as a fallback if the previous step fails, we'll use home dir
  */
 
 const os = require('os');
@@ -19,10 +19,10 @@ function getAppDataDir() {
         appDataDir = process.env.APPDATA;
     }
     else if (os.platform() === 'linux') {
-        appDataDir = os.homedir() + '/.local/share';
+        appDataDir = `${os.homedir()}/.local/share`;
     }
     else if (os.platform() === 'darwin') {
-        appDataDir = os.homedir() + '/Library/Application Support';
+        appDataDir = `${os.homedir()}/Library/Application Support`;
     }
 
     if (!fs.existsSync(appDataDir)) {
@@ -59,16 +59,20 @@ function getTriliumDataDir() {
     return appDataPath;
 }
 
-const TRILIUM_DATA_DIR =  getTriliumDataDir();
-const DOCUMENT_PATH = TRILIUM_DATA_DIR + path.sep + "document.db";
-const BACKUP_DIR = TRILIUM_DATA_DIR + path.sep + "backup";
-const LOG_DIR = TRILIUM_DATA_DIR + path.sep + "log";
-const ANONYMIZED_DB_DIR = TRILIUM_DATA_DIR + path.sep + "anonymized-db";
+const TRILIUM_DATA_DIR = getTriliumDataDir();
+const DIR_SEP = TRILIUM_DATA_DIR + path.sep;
+
+const DOCUMENT_PATH = process.env.TRILIUM_DOCUMENT_PATH || `${DIR_SEP}document.db`;
+const BACKUP_DIR = process.env.TRILIUM_BACKUP_DIR || `${DIR_SEP}backup`;
+const LOG_DIR = process.env.TRILIUM_LOG_DIR || `${DIR_SEP}log`;
+const ANONYMIZED_DB_DIR = process.env.TRILIUM_ANONYMIZED_DB_DIR || `${DIR_SEP}anonymized-db`;
+const CONFIG_INI_PATH = process.env.TRILIUM_CONFIG_INI_PATH || `${DIR_SEP}config.ini`;
 
 module.exports = {
     TRILIUM_DATA_DIR,
     DOCUMENT_PATH,
     BACKUP_DIR,
     LOG_DIR,
-    ANONYMIZED_DB_DIR
+    ANONYMIZED_DB_DIR,
+    CONFIG_INI_PATH
 };

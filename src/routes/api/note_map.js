@@ -1,16 +1,24 @@
 "use strict";
 
-const becca = require("../../becca/becca");
+const becca = require('../../becca/becca.js');
 const { JSDOM } = require("jsdom");
 
-function buildDescendantCountMap() {
-    const noteIdToCountMap = {};
+function buildDescendantCountMap(noteIdsToCount) {
+    if (!Array.isArray(noteIdsToCount)) {
+        throw new Error('noteIdsToCount: type error');
+    }
+
+    const noteIdToCountMap = Object.create(null);
 
     function getCount(noteId) {
         if (!(noteId in noteIdToCountMap)) {
             const note = becca.getNote(noteId);
 
-            noteIdToCountMap[noteId] = note.children.length;
+            const hiddenImageNoteIds = note.getRelations('imageLink').map(rel => rel.value);
+            const childNoteIds = note.children.map(child => child.noteId);
+            const nonHiddenNoteIds = childNoteIds.filter(childNoteId => !hiddenImageNoteIds.includes(childNoteId));
+
+            noteIdToCountMap[noteId] = nonHiddenNoteIds.length;
 
             for (const child of note.children) {
                 noteIdToCountMap[noteId] += getCount(child.noteId);
@@ -19,12 +27,17 @@ function buildDescendantCountMap() {
 
         return noteIdToCountMap[noteId];
     }
-
-    getCount('root');
+    noteIdsToCount.forEach((noteId) => {
+        getCount(noteId);
+    });
 
     return noteIdToCountMap;
 }
-
+/**
+ * @param {BNote} note
+ * @param {int} depth
+ * @returns {string[]} noteIds
+ */
 function getNeighbors(note, depth) {
     if (depth === 0) {
         return [];
@@ -33,7 +46,7 @@ function getNeighbors(note, depth) {
     const retNoteIds = [];
 
     function isIgnoredRelation(relation) {
-        return ['relationMapLink', 'template', 'image'].includes(relation.name);
+        return ['relationMapLink', 'template', 'inherit', 'image', 'ancestor'].includes(relation.name);
     }
 
     // forward links
@@ -44,7 +57,7 @@ function getNeighbors(note, depth) {
 
         const targetNote = relation.getTargetNote();
 
-        if (targetNote.hasLabel('excludeFromNoteMap')) {
+        if (!targetNote || targetNote.isLabelTruthy('excludeFromNoteMap')) {
             continue;
         }
 
@@ -63,7 +76,7 @@ function getNeighbors(note, depth) {
 
         const sourceNote = relation.getNote();
 
-        if (sourceNote.hasLabel('excludeFromNoteMap')) {
+        if (!sourceNote || sourceNote.isLabelTruthy('excludeFromNoteMap')) {
             continue;
         }
 
@@ -79,32 +92,51 @@ function getNeighbors(note, depth) {
 
 function getLinkMap(req) {
     const mapRootNote = becca.getNote(req.params.noteId);
-    // if the map root itself has ignore (journal typically) then there wouldn't be anything to display so
-    // we'll just ignore it
-    const ignoreExcludeFromNoteMap = mapRootNote.hasLabel('excludeFromNoteMap');
+    // if the map root itself has "excludeFromNoteMap" attribute (journal typically) then there wouldn't be anything
+    // to display, so we'll just ignore it
+    const ignoreExcludeFromNoteMap = mapRootNote.isLabelTruthy('excludeFromNoteMap');
+    let unfilteredNotes;
+
+    if (mapRootNote.type === 'search') {
+        // for search notes, we want to consider the direct search results only without the descendants
+        unfilteredNotes = mapRootNote.getSearchResultNotes();
+    } else {
+        unfilteredNotes = mapRootNote.getSubtree({
+            includeArchived: false,
+            resolveSearch: true,
+            includeHidden: mapRootNote.isInHiddenSubtree()
+        }).notes;
+    }
 
     const noteIds = new Set(
-        mapRootNote.getSubtreeNotes(false)
-            .filter(note => ignoreExcludeFromNoteMap || !note.hasLabel('excludeFromNoteMap'))
+        unfilteredNotes
+            .filter(note => ignoreExcludeFromNoteMap || !note.isLabelTruthy('excludeFromNoteMap'))
             .map(note => note.noteId)
     );
+
+    if (mapRootNote.type === 'search') {
+        noteIds.delete(mapRootNote.noteId);
+    }
 
     for (const noteId of getNeighbors(mapRootNote, 3)) {
         noteIds.add(noteId);
     }
 
-    const notes = Array.from(noteIds).map(noteId => {
+    const noteIdsArray = Array.from(noteIds)
+
+    const notes = noteIdsArray.map(noteId => {
         const note = becca.getNote(noteId);
 
         return [
             note.noteId,
             note.getTitleOrProtected(),
-            note.type
+            note.type,
+            note.getLabelValue('color')
         ];
     });
 
     const links = Object.values(becca.attributes).filter(rel => {
-        if (rel.type !== 'relation' || rel.name === 'relationMapLink' || rel.name === 'template') {
+        if (rel.type !== 'relation' || rel.name === 'relationMapLink' || rel.name === 'template' || rel.name === 'inherit') {
             return false;
         }
         else if (!noteIds.has(rel.noteId) || !noteIds.has(rel.value)) {
@@ -119,8 +151,8 @@ function getLinkMap(req) {
             return true;
         }
     })
-        .map(rel => ({
-        id: rel.noteId + "-" + rel.name + "-" + rel.value,
+    .map(rel => ({
+        id: `${rel.noteId}-${rel.name}-${rel.value}`,
         sourceNoteId: rel.noteId,
         targetNoteId: rel.value,
         name: rel.name
@@ -128,20 +160,24 @@ function getLinkMap(req) {
 
     return {
         notes: notes,
-        noteIdToDescendantCountMap: buildDescendantCountMap(),
+        noteIdToDescendantCountMap: buildDescendantCountMap(noteIdsArray),
         links: links
     };
 }
 
 function getTreeMap(req) {
     const mapRootNote = becca.getNote(req.params.noteId);
-    // if the map root itself has ignore (journal typically) then there wouldn't be anything to display so
-    // we'll just ignore it
-    const ignoreExcludeFromNoteMap = mapRootNote.hasLabel('excludeFromNoteMap');
-    const noteIds = new Set();
+    // if the map root itself has "excludeFromNoteMap" (journal typically) then there wouldn't be anything to display,
+    // so we'll just ignore it
+    const ignoreExcludeFromNoteMap = mapRootNote.isLabelTruthy('excludeFromNoteMap');
+    const subtree = mapRootNote.getSubtree({
+        includeArchived: false,
+        resolveSearch: true,
+        includeHidden: mapRootNote.isInHiddenSubtree()
+    });
 
-    const notes = mapRootNote.getSubtreeNotes(false)
-        .filter(note => ignoreExcludeFromNoteMap || !note.hasLabel('excludeFromNoteMap'))
+    const notes = subtree.notes
+        .filter(note => ignoreExcludeFromNoteMap || !note.isLabelTruthy('excludeFromNoteMap'))
         .filter(note => {
             if (note.type !== 'image' || note.getChildNotes().length > 0) {
                 return true;
@@ -155,34 +191,50 @@ function getTreeMap(req) {
 
             return !note.getParentNotes().find(parentNote => parentNote.noteId === imageLinkRelation.noteId);
         })
-        .concat(...mapRootNote.getParentNotes())
         .map(note => [
             note.noteId,
             note.getTitleOrProtected(),
-            note.type
+            note.type,
+            note.getLabelValue('color')
         ]);
 
+    const noteIds = new Set();
     notes.forEach(([noteId]) => noteIds.add(noteId));
 
     const links = [];
 
-    for (const branch of Object.values(becca.branches)) {
-        if (!noteIds.has(branch.parentNoteId) || !noteIds.has(branch.noteId)) {
+    for (const {parentNoteId, childNoteId} of subtree.relationships) {
+        if (!noteIds.has(parentNoteId) || !noteIds.has(childNoteId)) {
             continue;
         }
 
         links.push({
-            id: branch.branchId,
-            sourceNoteId: branch.parentNoteId,
-            targetNoteId: branch.noteId
+            sourceNoteId: parentNoteId,
+            targetNoteId: childNoteId
         });
     }
 
+    const noteIdToDescendantCountMap = buildDescendantCountMap(Array.from(noteIds));
+
+    updateDescendantCountMapForSearch(noteIdToDescendantCountMap, subtree.relationships);
+
     return {
         notes: notes,
-        noteIdToDescendantCountMap: buildDescendantCountMap(),
+        noteIdToDescendantCountMap: noteIdToDescendantCountMap,
         links: links
     };
+}
+
+function updateDescendantCountMapForSearch(noteIdToDescendantCountMap, relationships) {
+    for (const {parentNoteId, childNoteId} of relationships) {
+        const parentNote = becca.notes[parentNoteId];
+        if (!parentNote || parentNote.type !== 'search') {
+            continue;
+        }
+
+        noteIdToDescendantCountMap[parentNote.noteId] = noteIdToDescendantCountMap[parentNoteId] || 0;
+        noteIdToDescendantCountMap[parentNote.noteId] += noteIdToDescendantCountMap[childNoteId] || 1;
+    }
 }
 
 function removeImages(document) {
@@ -213,10 +265,11 @@ function findExcerpts(sourceNote, referencedNoteId) {
 
         let centerEl = linkEl;
 
-        while (centerEl.tagName !== 'BODY' && centerEl.parentElement.textContent.length <= EXCERPT_CHAR_LIMIT) {
+        while (centerEl.tagName !== 'BODY' && centerEl.parentElement?.textContent?.length <= EXCERPT_CHAR_LIMIT) {
             centerEl = centerEl.parentElement;
         }
 
+        /** @var {HTMLElement[]} */
         const excerptEls = [centerEl];
         let excerptLength = centerEl.textContent.length;
         let left = centerEl;
@@ -233,7 +286,7 @@ function findExcerpts(sourceNote, referencedNoteId) {
                 if (prevText.length + excerptLength > EXCERPT_CHAR_LIMIT) {
                     const prefix = prevText.substr(prevText.length - (EXCERPT_CHAR_LIMIT - excerptLength));
 
-                    const textNode = document.createTextNode("…" + prefix);
+                    const textNode = document.createTextNode(`…${prefix}`);
                     excerptEls.unshift(textNode);
 
                     break;
@@ -253,7 +306,7 @@ function findExcerpts(sourceNote, referencedNoteId) {
                 if (nextText.length + excerptLength > EXCERPT_CHAR_LIMIT) {
                     const suffix = nextText.substr(nextText.length - (EXCERPT_CHAR_LIMIT - excerptLength));
 
-                    const textNode = document.createTextNode(suffix + "…");
+                    const textNode = document.createTextNode(`${suffix}…`);
                     excerptEls.push(textNode);
 
                     break;
@@ -283,19 +336,29 @@ function findExcerpts(sourceNote, referencedNoteId) {
     return excerpts;
 }
 
+function getFilteredBacklinks(note) {
+    return note.getTargetRelations()
+        // search notes have "ancestor" relations which are not interesting
+        .filter(relation => !!relation.getNote() && relation.getNote().type !== 'search');
+}
+
+function getBacklinkCount(req) {
+    const {noteId} = req.params;
+
+    const note = becca.getNoteOrThrow(noteId);
+
+    return {
+        count: getFilteredBacklinks(note).length
+    };
+}
+
 function getBacklinks(req) {
     const {noteId} = req.params;
-    const note = becca.getNote(noteId);
-
-    if (!note) {
-        return [404, `Note ${noteId} was not found`];
-    }
-
-    let backlinks = note.getTargetRelations();
+    const note = becca.getNoteOrThrow(noteId);
 
     let backlinksWithExcerptCount = 0;
 
-    return backlinks.map(backlink => {
+    return getFilteredBacklinks(note).map(backlink => {
         const sourceNote = backlink.note;
 
         if (sourceNote.type !== 'text' || backlinksWithExcerptCount > 50) {
@@ -319,5 +382,6 @@ function getBacklinks(req) {
 module.exports = {
     getLinkMap,
     getTreeMap,
+    getBacklinkCount,
     getBacklinks
 };

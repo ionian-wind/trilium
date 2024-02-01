@@ -1,8 +1,8 @@
 "use strict";
 
-const Expression = require('./expression');
-const NoteSet = require('../note_set');
-const TrueExp = require("./true");
+const Expression = require('./expression.js');
+const NoteSet = require('../note_set.js');
+const TrueExp = require('./true.js');
 
 class OrExp extends Expression {
     static of(subExpressions) {
@@ -25,11 +25,11 @@ class OrExp extends Expression {
         this.subExpressions = subExpressions;
     }
 
-    execute(inputNoteSet, executionContext) {
+    execute(inputNoteSet, executionContext, searchContext) {
         const resultNoteSet = new NoteSet();
 
         for (const subExpression of this.subExpressions) {
-            resultNoteSet.mergeIn(subExpression.execute(inputNoteSet, executionContext));
+            resultNoteSet.mergeIn(subExpression.execute(inputNoteSet, executionContext, searchContext));
         }
 
         return resultNoteSet;

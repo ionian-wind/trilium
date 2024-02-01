@@ -1,13 +1,13 @@
 :root {
     --theme-style: dark;
 
-    --main-font-family: MontserratLight;
+    --main-font-family: Montserrat;
     --main-font-size: normal;
 
-    --tree-font-family: MontserratLight;
+    --tree-font-family: Montserrat;
     --tree-font-size: normal;
 
-    --detail-font-family: MontserratLight;
+    --detail-font-family: Montserrat;
     --detail-font-size: normal;
 
     --monospace-font-family: JetBrainsLight;
@@ -16,15 +16,17 @@
     --main-background-color: #333;
     --main-text-color: #ccc;
     --main-border-color: #aaa;
+    --dropdown-border-color: #555;
 
     --accented-background-color: #555;
     --more-accented-background-color: #777;
 
     --button-background-color: transparent;
-    --button-disabled-background-color: #222;
     --button-border-color: #ccc;
     --button-text-color: currentColor;
     --button-border-radius: 5px;
+    --button-disabled-background-color: transparent;
+    --button-disabled-text-color: #999;
 
     --primary-button-background-color: #888;
     --primary-button-text-color: white;
@@ -35,11 +37,13 @@
     --input-text-color: #ccc;
     --input-background-color: #333;
 
-    --hover-item-text-color: black;
-    --hover-item-background-color: #777;
+    --hover-item-text-color: #ccc;
+    --hover-item-background-color: transparent;
+    --hover-item-border-color: #aaa;
 
     --active-item-text-color: black;
     --active-item-background-color: #777;
+    --active-item-border-color: transparent;
 
     --menu-text-color: white;
     --menu-background-color: #222;
@@ -61,7 +65,8 @@
     --inactive-tab-hover-background-color: #525252;
     --inactive-tab-text-color: #bbb;
 
-    --scrollbar-border-color: #888;
+    --scrollbar-border-color: #666;
+    --scrollbar-background-color: #333;
     --tooltip-background-color: #333;
     --link-color: lightskyblue;
 
@@ -69,7 +74,7 @@
 }
 
 body .global-menu-button {
-    background-image: url("../images/icon-grey.png");
+    background-image: url("../images/icon-grey.svg");
 }
 
 body ::-webkit-calendar-picker-indicator {
@@ -78,4 +83,8 @@ body ::-webkit-calendar-picker-indicator {
 
 body .CodeMirror {
     filter: invert(90%) hue-rotate(180deg);
+}
+
+.excalidraw.theme--dark {
+    --theme-filter: invert(80%) hue-rotate(180deg) !important;
 }

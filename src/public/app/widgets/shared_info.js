@@ -18,7 +18,7 @@ const TPL = `
 
 export default class SharedInfoWidget extends NoteContextAwareWidget {
     isEnabled() {
-        return super.isEnabled() && this.noteId !== 'share' && this.note.hasAncestor('share');
+        return super.isEnabled() && this.noteId !== '_share' && this.note.hasAncestor('_share');
     }
 
     doRender() {
@@ -35,11 +35,18 @@ export default class SharedInfoWidget extends NoteContextAwareWidget {
         const shareId = this.getShareId(note);
 
         if (syncServerHost) {
-            link = syncServerHost + "/share/" + shareId;
+            link = `${syncServerHost}/share/${shareId}`;
             this.$sharedText.text("This note is shared publicly on");
         }
         else {
-            link = location.protocol + '//' + location.host + location.pathname + "share/" + shareId;
+            let host = location.host;
+            if (host.endsWith('/')) {
+                // seems like IE has trailing slash
+                // https://github.com/zadam/trilium/issues/3782
+                host = host.substr(0, host.length - 1);
+            }
+
+            link = `${location.protocol}//${host}${location.pathname}share/${shareId}`;
             this.$sharedText.text("This note is shared locally on");
         }
 
@@ -55,10 +62,10 @@ export default class SharedInfoWidget extends NoteContextAwareWidget {
     }
 
     entitiesReloadedEvent({loadResults}) {
-        if (loadResults.getAttributes().find(attr => attr.name.startsWith("share") && attributeService.isAffecting(attr, this.note))) {
+        if (loadResults.getAttributeRows().find(attr => attr.name.startsWith('_share') && attributeService.isAffecting(attr, this.note))) {
             this.refresh();
         }
-        else if (loadResults.getBranches().find(branch => branch.noteId === this.noteId)) {
+        else if (loadResults.getBranchRows().find(branch => branch.noteId === this.noteId)) {
             this.refresh();
         }
     }

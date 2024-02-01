@@ -17,7 +17,8 @@ const TPL = `
         
         .basic-properties-widget > * {
             margin-right: 30px;
-            margin-top: 12px;
+            margin-top: 9px;
+            margin-bottom: 2px;
         }
         
         .note-type-container, .editability-select-container {
@@ -68,13 +69,9 @@ export default class BasicPropertiesWidget extends NoteContextAwareWidget {
         return "toggleRibbonBasicProperties";
     }
 
-    isEnabled() {
-        return this.note;
-    }
-
     getTitle() {
         return {
-            show: this.isEnabled(),
+            show: !this.note.isLaunchBarConfig(),
             title: 'Basic Properties',
             icon: 'bx bx-slider'
         };

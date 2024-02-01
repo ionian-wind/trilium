@@ -3,6 +3,12 @@ import protectedSessionHolder from "../services/protected_session_holder.js";
 import SpacedUpdate from "../services/spaced_update.js";
 import server from "../services/server.js";
 import libraryLoader from "../services/library_loader.js";
+import appContext from "../components/app_context.js";
+import keyboardActionsService from "../services/keyboard_actions.js";
+import noteCreateService from "../services/note_create.js";
+import attributeService from "../services/attributes.js";
+import attributeRenderer from "../services/attribute_renderer.js";
+
 import EmptyTypeWidget from "./type_widgets/empty.js";
 import EditableTextTypeWidget from "./type_widgets/editable_text.js";
 import EditableCodeTypeWidget from "./type_widgets/editable_code.js";
@@ -10,18 +16,18 @@ import FileTypeWidget from "./type_widgets/file.js";
 import ImageTypeWidget from "./type_widgets/image.js";
 import RenderTypeWidget from "./type_widgets/render.js";
 import RelationMapTypeWidget from "./type_widgets/relation_map.js";
+import CanvasTypeWidget from "./type_widgets/canvas.js";
 import ProtectedSessionTypeWidget from "./type_widgets/protected_session.js";
 import BookTypeWidget from "./type_widgets/book.js";
-import appContext from "../services/app_context.js";
-import keyboardActionsService from "../services/keyboard_actions.js";
-import noteCreateService from "../services/note_create.js";
-import DeletedTypeWidget from "./type_widgets/deleted.js";
 import ReadOnlyTextTypeWidget from "./type_widgets/read_only_text.js";
 import ReadOnlyCodeTypeWidget from "./type_widgets/read_only_code.js";
 import NoneTypeWidget from "./type_widgets/none.js";
-import attributeService from "../services/attributes.js";
 import NoteMapTypeWidget from "./type_widgets/note_map.js";
-import attributeRenderer from "../services/attribute_renderer.js";
+import WebViewTypeWidget from "./type_widgets/web_view.js";
+import DocTypeWidget from "./type_widgets/doc.js";
+import ContentWidgetTypeWidget from "./type_widgets/content_widget.js";
+import AttachmentListTypeWidget from "./type_widgets/attachment_list.js";
+import AttachmentDetailTypeWidget from "./type_widgets/attachment_detail.js";
 
 const TPL = `
 <div class="note-detail">
@@ -40,19 +46,24 @@ const TPL = `
 
 const typeWidgetClasses = {
     'empty': EmptyTypeWidget,
-    'deleted': DeletedTypeWidget,
-    'editable-text': EditableTextTypeWidget,
-    'read-only-text': ReadOnlyTextTypeWidget,
-    'editable-code': EditableCodeTypeWidget,
-    'read-only-code': ReadOnlyCodeTypeWidget,
+    'editableText': EditableTextTypeWidget,
+    'readOnlyText': ReadOnlyTextTypeWidget,
+    'editableCode': EditableCodeTypeWidget,
+    'readOnlyCode': ReadOnlyCodeTypeWidget,
     'file': FileTypeWidget,
     'image': ImageTypeWidget,
     'search': NoneTypeWidget,
     'render': RenderTypeWidget,
-    'relation-map': RelationMapTypeWidget,
-    'protected-session': ProtectedSessionTypeWidget,
+    'relationMap': RelationMapTypeWidget,
+    'canvas': CanvasTypeWidget,
+    'protectedSession': ProtectedSessionTypeWidget,
     'book': BookTypeWidget,
-    'note-map': NoteMapTypeWidget
+    'noteMap': NoteMapTypeWidget,
+    'webView': WebViewTypeWidget,
+    'doc': DocTypeWidget,
+    'contentWidget': ContentWidgetTypeWidget,
+    'attachmentDetail': AttachmentDetailTypeWidget,
+    'attachmentList': AttachmentListTypeWidget
 };
 
 export default class NoteDetailWidget extends NoteContextAwareWidget {
@@ -65,17 +76,18 @@ export default class NoteDetailWidget extends NoteContextAwareWidget {
             const {note} = this.noteContext;
             const {noteId} = note;
 
-            const dto = note.dto;
-            dto.content = this.getTypeWidget().getContent();
+            const data = await this.getTypeWidget().getData();
 
             // for read only notes
-            if (dto.content === undefined) {
+            if (data === undefined) {
                 return;
             }
 
             protectedSessionHolder.touchProtectedSessionIfNecessary(note);
 
-            await server.put('notes/' + noteId, dto, this.componentId);
+            await server.put(`notes/${noteId}/data`, data, this.componentId);
+
+            this.getTypeWidget().dataSaved?.();
         });
 
         appContext.addBeforeUnloadListener(this);
@@ -88,39 +100,18 @@ export default class NoteDetailWidget extends NoteContextAwareWidget {
     doRender() {
         this.$widget = $(TPL);
         this.contentSized();
-
-        this.$widget.on("dragover", e => e.preventDefault());
-
-        this.$widget.on("dragleave", e => e.preventDefault());
-
-        this.$widget.on("drop", async e => {
-            const activeNote = appContext.tabManager.getActiveContextNote();
-
-            if (!activeNote) {
-                return;
-            }
-
-            const files = [...e.originalEvent.dataTransfer.files]; // chrome has issue that dataTransfer.files empties after async operation
-
-            const importService = await import("../services/import.js");
-
-            importService.uploadFiles(activeNote.noteId, files, {
-                safeImport: true,
-                shrinkImages: true,
-                textImportedAsText: true,
-                codeImportedAsCode: true,
-                explodeArchives: true,
-                replaceUnderscoresWithSpaces: true
-            });
-        });
     }
 
     async refresh() {
         this.type = await this.getWidgetType();
-        this.mime = this.note ? this.note.mime : null;
+        this.mime = this.note?.mime;
 
         if (!(this.type in this.typeWidgets)) {
             const clazz = typeWidgetClasses[this.type];
+
+            if (!clazz) {
+                throw new Error(`Cannot find type widget for type '${this.type}'`);
+            }
 
             const typeWidget = this.typeWidgets[this.type] = new clazz();
             typeWidget.spacedUpdate = this.spacedUpdate;
@@ -133,7 +124,7 @@ export default class NoteDetailWidget extends NoteContextAwareWidget {
 
             await typeWidget.handleEvent('setNoteContext', {noteContext: this.noteContext});
 
-            // this is happening in update() so note has been already set, and we need to reflect this
+            // this is happening in update(), so note has been already set, and we need to reflect this
             await typeWidget.handleEvent('noteSwitched', {
                 noteContext: this.noteContext,
                 notePath: this.noteContext.notePath
@@ -145,16 +136,24 @@ export default class NoteDetailWidget extends NoteContextAwareWidget {
         this.checkFullHeight();
     }
 
+    /**
+     * sets full height of container that contains note content for a subset of note-types
+     */
     checkFullHeight() {
         // https://github.com/zadam/trilium/issues/2522
         this.$widget.toggleClass("full-height",
-            !this.noteContext.hasNoteList()
-            && ['editable-text', 'editable-code'].includes(this.type));
+            (
+                !this.noteContext.hasNoteList()
+                && ['canvas', 'webView', 'noteMap'].includes(this.type)
+                && this.mime !== 'text/x-sqlite;schema=trilium'
+            )
+            || this.noteContext.viewScope.viewMode === 'attachments'
+        );
     }
 
     getTypeWidget() {
         if (!this.typeWidgets[this.type]) {
-            throw new Error("Could not find typeWidget for type: " + this.type);
+            throw new Error(`Could not find typeWidget for type '${this.type}'`);
         }
 
         return this.typeWidgets[this.type];
@@ -165,42 +164,56 @@ export default class NoteDetailWidget extends NoteContextAwareWidget {
 
         if (!note) {
             return "empty";
-        } else if (note.isDeleted) {
-            return "deleted";
         }
 
         let type = note.type;
+        const viewScope = this.noteContext.viewScope;
 
-        if (type === 'text' && await this.noteContext.isReadOnly()) {
-            type = 'read-only-text';
-        }
-
-        if ((type === 'code' || type === 'mermaid') && await this.noteContext.isReadOnly()) {
-            type = 'read-only-code';
-        }
-
-        if (type === 'text') {
-            type = 'editable-text';
-        }
-
-        if (type === 'code' || type === 'mermaid') {
-            type = 'editable-code';
+        if (viewScope.viewMode === 'source') {
+            type = 'readOnlyCode';
+        } else if (viewScope.viewMode === 'attachments') {
+            type = viewScope.attachmentId ? 'attachmentDetail' : 'attachmentList';
+        } else if (type === 'text' && await this.noteContext.isReadOnly()) {
+            type = 'readOnlyText';
+        } else if ((type === 'code' || type === 'mermaid') && await this.noteContext.isReadOnly()) {
+            type = 'readOnlyCode';
+        } else if (type === 'text') {
+            type = 'editableText';
+        } else if (type === 'code' || type === 'mermaid') {
+            type = 'editableCode';
+        } else if (type === 'launcher') {
+            type = 'doc';
         }
 
         if (note.isProtected && !protectedSessionHolder.isProtectedSessionAvailable()) {
-            type = 'protected-session';
+            type = 'protectedSession';
         }
 
         return type;
     }
 
     async focusOnDetailEvent({ntxId}) {
-        if (this.noteContext.ntxId === ntxId) {
-            await this.refresh();
+        if (this.noteContext.ntxId !== ntxId) {
+            return;
+        }
 
-            const widget = this.getTypeWidget();
-            await widget.initialized;
-            widget.focus();
+        await this.refresh();
+        const widget = this.getTypeWidget();
+        await widget.initialized;
+        widget.focus();
+    }
+
+    async scrollToEndEvent({ntxId}) {
+        if (this.noteContext.ntxId !== ntxId) {
+            return;
+        }
+
+        await this.refresh();
+        const widget = this.getTypeWidget();
+        await widget.initialized;
+
+        if (widget.scrollToEnd) {
+            widget.scrollToEnd();
         }
     }
 
@@ -210,10 +223,19 @@ export default class NoteDetailWidget extends NoteContextAwareWidget {
         }
     }
 
-    async beforeTabRemoveEvent({ntxIds}) {
+    async beforeNoteContextRemoveEvent({ntxIds}) {
         if (this.isNoteContext(ntxIds)) {
             await this.spacedUpdate.updateNowIfNecessary();
         }
+    }
+
+    async runActiveNoteCommand(params) {
+        if (this.isNoteContext(params.ntxId)) {
+            // make sure that script is saved before running it #4028
+            await this.spacedUpdate.updateNowIfNecessary();
+        }
+
+        return await this.parent.triggerCommand('runActiveNote', params);
     }
 
     async printActiveNoteEvent() {
@@ -229,15 +251,18 @@ export default class NoteDetailWidget extends NoteContextAwareWidget {
             $promotedAttributes = (await attributeRenderer.renderNormalAttributes(this.note)).$renderedAttributes;
         }
 
+        const {assetPath} = window.glob;
+
         this.$widget.find('.note-detail-printable:visible').printThis({
             header: $("<div>")
                         .append($("<h2>").text(this.note.title))
                         .append($promotedAttributes)
                         .prop('outerHTML'),
+
             footer: `
-<script src="libraries/katex/katex.min.js"></script>
-<script src="libraries/katex/mhchem.min.js"></script>
-<script src="libraries/katex/auto-render.min.js"></script>
+<script src="${assetPath}/node_modules/katex/dist/katex.min.js"></script>
+<script src="${assetPath}/node_modules/katex/dist/contrib/mhchem.min.js"></script>
+<script src="${assetPath}/node_modules/katex/dist/contrib/auto-render.min.js"></script>
 <script>
     document.body.className += ' ck-content printed-content';
     
@@ -246,13 +271,13 @@ export default class NoteDetailWidget extends NoteContextAwareWidget {
 `,
             importCSS: false,
             loadCSS: [
-                "libraries/codemirror/codemirror.css",
-                "libraries/ckeditor/ckeditor-content.css",
-                "libraries/bootstrap/css/bootstrap.min.css",
-                "libraries/katex/katex.min.css",
-                "stylesheets/print.css",
-                "stylesheets/relation_map.css",
-                "stylesheets/ckeditor-theme.css"
+                `${assetPath}/libraries/codemirror/codemirror.css`,
+                `${assetPath}/libraries/ckeditor/ckeditor-content.css`,
+                `${assetPath}/libraries/bootstrap/css/bootstrap.min.css`,
+                `${assetPath}/node_modules/katex/dist/katex.min.css`,
+                `${assetPath}/stylesheets/print.css`,
+                `${assetPath}/stylesheets/relation_map.css`,
+                `${assetPath}/stylesheets/ckeditor-theme.css`
             ],
             debug: true
         });
@@ -265,13 +290,27 @@ export default class NoteDetailWidget extends NoteContextAwareWidget {
     }
 
     async entitiesReloadedEvent({loadResults}) {
-        if (loadResults.isNoteContentReloaded(this.noteId, this.componentId)
-            || (loadResults.isNoteReloaded(this.noteId, this.componentId) && (this.type !== await this.getWidgetType() || this.mime !== this.note.mime))) {
+        // we're detecting note type change on the note_detail level, but triggering the noteTypeMimeChanged
+        // globally, so it gets also to e.g. ribbon components. But this means that the event can be generated multiple
+        // times if the same note is open in several tabs.
 
+        if (loadResults.isNoteContentReloaded(this.noteId, this.componentId)) {
+            // probably incorrect event
+            // calling this.refresh() is not enough since the event needs to be propagated to children as well
+            // FIXME: create a separate event to force hierarchical refresh
+
+            // this uses handleEvent to make sure that the ordinary content updates are propagated only in the subtree
+            // to avoid the problem in #3365
             this.handleEvent('noteTypeMimeChanged', {noteId: this.noteId});
         }
+        else if (loadResults.isNoteReloaded(this.noteId, this.componentId)
+            && (this.type !== await this.getWidgetType() || this.mime !== this.note.mime)) {
+
+            // this needs to have a triggerEvent so that e.g., note type (not in the component subtree) is updated
+            this.triggerEvent('noteTypeMimeChanged', {noteId: this.noteId});
+        }
         else {
-            const attrs = loadResults.getAttributes();
+            const attrs = loadResults.getAttributeRows();
 
             const label = attrs.find(attr =>
                 attr.type === 'label'
@@ -280,13 +319,13 @@ export default class NoteDetailWidget extends NoteContextAwareWidget {
 
             const relation = attrs.find(attr =>
                 attr.type === 'relation'
-                && ['template', 'renderNote'].includes(attr.name)
+                && ['template', 'inherit', 'renderNote'].includes(attr.name)
                 && attributeService.isAffecting(attr, this.note));
 
             if (label || relation) {
                 // probably incorrect event
                 // calling this.refresh() is not enough since the event needs to be propagated to children as well
-                this.handleEvent('noteTypeMimeChanged', {noteId: this.noteId});
+                this.triggerEvent('noteTypeMimeChanged', {noteId: this.noteId});
             }
         }
     }
@@ -301,6 +340,16 @@ export default class NoteDetailWidget extends NoteContextAwareWidget {
         }
     }
 
+    async executeInActiveNoteDetailWidgetEvent({callback}) {
+        if (!this.isActiveNoteContext()) {
+            return;
+        }
+
+        await this.initialized;
+
+        callback(this);
+    }
+
     async cutIntoNoteCommand() {
         const note = appContext.tabManager.getActiveContextNote();
 
@@ -311,7 +360,8 @@ export default class NoteDetailWidget extends NoteContextAwareWidget {
         // without await as this otherwise causes deadlock through component mutex
         noteCreateService.createNote(appContext.tabManager.getActiveContextNotePath(), {
             isProtected: note.isProtected,
-            saveSelection: true
+            saveSelection: true,
+            textEditor: await this.noteContext.getTextEditor()
         });
     }
 
@@ -324,5 +374,17 @@ export default class NoteDetailWidget extends NoteContextAwareWidget {
         if (this.noteContext.isActive()) {
             this.refresh();
         }
+    }
+
+    async executeWithTypeWidgetEvent({resolve, ntxId}) {
+        if (!this.isNoteContext(ntxId)) {
+            return;
+        }
+
+        await this.initialized;
+
+        await this.getWidgetType();
+
+        resolve(this.getTypeWidget());
     }
 }

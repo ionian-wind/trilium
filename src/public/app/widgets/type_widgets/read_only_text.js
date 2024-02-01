@@ -1,6 +1,4 @@
-import froca from "../../services/froca.js";
 import AbstractTextTypeWidget from "./abstract_text_type_widget.js";
-import treeService from "../../services/tree.js";
 import libraryLoader from "../../services/library_loader.js";
 
 const TPL = `
@@ -33,6 +31,11 @@ const TPL = `
         padding-top: 10px;
         font-family: var(--detail-font-family);
         min-height: 50px;
+        position: relative;
+    }
+    
+    body.mobile .note-detail-readonly-text {
+        padding-left: 10px;
     }
         
     .note-detail-readonly-text p:first-child, .note-detail-readonly-text::before {
@@ -52,11 +55,12 @@ const TPL = `
         padding: 5px;
         cursor: pointer;
         border: 1px solid transparent;
-        border-radius: 5px;
+        border-radius: var(--button-border-radius);
+        color: var(--button-text-color);
     }
     
     .edit-text-note-button:hover {
-        border-color: var(--main-border-color);
+        border-color: var(--button-border-color);
     }
     </style>
 
@@ -65,7 +69,7 @@ const TPL = `
 `;
 
 export default class ReadOnlyTextTypeWidget extends AbstractTextTypeWidget {
-    static getType() { return "read-only-text"; }
+    static getType() { return "readOnlyText"; }
 
     doRender() {
         this.$widget = $(TPL);
@@ -87,15 +91,12 @@ export default class ReadOnlyTextTypeWidget extends AbstractTextTypeWidget {
         // (see https://github.com/zadam/trilium/issues/1590 for example of such conflict)
         await libraryLoader.requireLibrary(libraryLoader.CKEDITOR);
 
-        const noteComplement = await froca.getNoteComplement(note.noteId);
+        const blob = await note.getBlob();
 
-        this.$content.html(noteComplement.content);
+        this.$content.html(blob.content);
 
         this.$content.find("a.reference-link").each(async (_, el) => {
-            const notePath = $(el).attr('href');
-            const noteId = treeService.getNoteIdFromNotePath(notePath);
-
-            this.loadReferenceLinkTitle(noteId, $(el));
+            this.loadReferenceLinkTitle($(el));
         });
 
         this.$content.find("section").each(async (_, el) => {
@@ -113,5 +114,15 @@ export default class ReadOnlyTextTypeWidget extends AbstractTextTypeWidget {
 
     async refreshIncludedNoteEvent({noteId}) {
         this.refreshIncludedNote(this.$content, noteId);
+    }
+
+    async executeWithContentElementEvent({resolve, ntxId}) {
+        if (!this.isNoteContext(ntxId)) {
+            return;
+        }
+
+        await this.initialized;
+
+        resolve(this.$content);
     }
 }

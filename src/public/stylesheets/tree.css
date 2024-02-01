@@ -11,6 +11,10 @@ span.fancytree-node.fancytree-hide {
 }
 
 .fancytree-title {
+    flex-basis: 0; /* to allow shrinking text to make space for buttons */
+    flex-shrink: 1;
+    flex-grow: 1;
+    overflow: hidden;
     margin-left: 7px;
     outline: none;
     position: relative;
@@ -61,10 +65,7 @@ span.fancytree-node.fancytree-hide {
     display: inline-block;
     width: 16px;
     height: 16px;
-    margin-left: 5px;
-    margin-right: 8px;
-    margin-top: 4px;
-    margin-bottom: 2px;
+    margin: 4px 8px 2px 5px;
 }
 
 .fancytree-loading span.fancytree-expander:after {
@@ -72,11 +73,11 @@ span.fancytree-node.fancytree-hide {
     color: inherit !important;
     display: block;
     border-radius: 50%;
-    border-color: #000 transparent #000 transparent;
+    border-color: var(--main-text-color) transparent var(--main-text-color) transparent;
     animation: lds-dual-ring 1.2s linear infinite;
     width: 12px;
     height: 12px;
-    margin-top: 4px;
+    margin-top: 2px;
     margin-left: 1px;
     border-width: 1px;
     border-style: solid;
@@ -134,8 +135,16 @@ span.fancytree-node.protected > span.fancytree-custom-icon {
     filter: drop-shadow(2px 2px 2px var(--main-text-color));
 }
 
+span.fancytree-node.multiple-parents.shared .fancytree-title::after {
+    font-family: 'boxicons' !important;
+    font-size: smaller;
+    content: " \ec27  \ec03";
+}
+
 span.fancytree-node.multiple-parents .fancytree-title::after {
-    content: " *";
+    font-family: 'boxicons' !important;
+    font-size: smaller;
+    content: " \ec27"; /* lookup code for "star" in boxicons.css */
 }
 
 span.fancytree-node.shared .fancytree-title::after {
@@ -157,29 +166,32 @@ span.fancytree-node.fancytree-active-clone:not(.fancytree-active) .fancytree-tit
     padding-left: 20px;
 }
 
+span.fancytree-active {
+    color: var(--active-item-text-color) !important;
+    background-color: var(--active-item-background-color) !important;
+    border-color: transparent; /* invisible border */
+    border-radius: 5px;
+}
+
 span.fancytree-active .fancytree-title {
     font-weight: bold;
     border: 0;
 }
 
-span.fancytree-active {
+span.fancytree-selected {
     border-color: var(--main-border-color) !important;
     border-radius: 5px;
 }
 
-span.fancytree-active, span.fancytree-active.fancytree-selected {
-    color: var(--active-item-text-color) !important;
-    background-color: var(--active-item-background-color) !important;
-    border-color: var(--main-background-color) !important; /* invisible border */
-    border-radius: 5px;
+span.fancytree-selected .fancytree-title {
+    text-decoration: underline;
+    font-style: italic;
 }
 
-span.fancytree-selected {
-    color: var(--hover-item-text-color) !important;
-    background-color: var(--hover-item-background-color) !important;
-    border-color: var(--main-background-color) !important; /* invisible border */
-    border-radius: 5px;
-    font-style: italic;
+span.fancytree-selected .fancytree-custom-icon::before {
+    content: "\eb43";
+    border: 1px solid var(--main-border-color);
+    border-radius: 3px;
 }
 
 span.fancytree-node:hover {
@@ -206,6 +218,11 @@ span.fancytree-node.archived {
     padding: 1px;
     border: 1px solid transparent;
     border-radius: 5px;
+}
+
+.unhoist-button.bx.tree-item-button {
+    margin-left: 0; /* unhoist button is on the left and doesn't need more margin */
+    display: block; /* keep always visible */
 }
 
 .tree-item-button:hover {

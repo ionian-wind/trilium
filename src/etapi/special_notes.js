@@ -1,7 +1,7 @@
-const specialNotesService = require("../services/special_notes");
-const dateNotesService = require("../services/date_notes");
-const eu = require("./etapi_utils");
-const mappers = require("./mappers");
+const specialNotesService = require('../services/special_notes.js');
+const dateNotesService = require('../services/date_notes.js');
+const eu = require('./etapi_utils.js');
+const mappers = require('./mappers.js');
 
 const getDateInvalidError = date => new eu.EtapiError(400, "DATE_INVALID", `Date "${date}" is not valid.`);
 const getMonthInvalidError = month => new eu.EtapiError(400, "MONTH_INVALID", `Month "${month}" is not valid.`);
@@ -20,7 +20,7 @@ function register(router) {
         const {date} = req.params;
 
         if (!isValidDate(date)) {
-            throw getDateInvalidError(res, date);
+            throw getDateInvalidError(date);
         }
 
         const note = specialNotesService.getInboxNote(date);
@@ -31,7 +31,7 @@ function register(router) {
         const {date} = req.params;
 
         if (!isValidDate(date)) {
-            throw getDateInvalidError(res, date);
+            throw getDateInvalidError(date);
         }
 
         const note = dateNotesService.getDayNote(date);
@@ -42,7 +42,7 @@ function register(router) {
         const {date} = req.params;
 
         if (!isValidDate(date)) {
-            throw getDateInvalidError(res, date);
+            throw getDateInvalidError(date);
         }
 
         const note = dateNotesService.getWeekNote(date);
@@ -53,7 +53,7 @@ function register(router) {
         const {month} = req.params;
 
         if (!/[0-9]{4}-[0-9]{2}/.test(month)) {
-            throw getMonthInvalidError(res, month);
+            throw getMonthInvalidError(month);
         }
 
         const note = dateNotesService.getMonthNote(month);
@@ -64,7 +64,7 @@ function register(router) {
         const {year} = req.params;
 
         if (!/[0-9]{4}/.test(year)) {
-            throw getYearInvalidError(res, year);
+            throw getYearInvalidError(year);
         }
 
         const note = dateNotesService.getYearNote(year);

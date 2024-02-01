@@ -1,10 +1,10 @@
 'use strict';
 
-const {app, globalShortcut} = require('electron');
-const sqlInit = require('./src/services/sql_init');
-const appIconService = require('./src/services/app_icon');
-const windowService = require('./src/services/window');
-const tray = require('./src/services/tray');
+const {app, globalShortcut, BrowserWindow} = require('electron');
+const sqlInit = require('./src/services/sql_init.js');
+const appIconService = require('./src/services/app_icon.js');
+const windowService = require('./src/services/window.js');
+const tray = require('./src/services/tray.js');
 
 // Adds debug features like hotkeys for triggering dev tools and reload
 require('electron-debug')();
@@ -13,12 +13,15 @@ appIconService.installLocalAppIcon();
 
 require('electron-dl')({ saveAs: true });
 
+// needed for excalidraw export https://github.com/zadam/trilium/issues/4271
+app.commandLine.appendSwitch("enable-experimental-web-platform-features");
+
+// Quit when all windows are closed, except on macOS. There, it's common
+// for applications and their menu bar to stay active until the user quits
+// explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') {
-        app.quit();
-    }
-    else if (process.platform === 'win32') {
-        app.exit(0); // attempt to fix the issue when app.quite() won't terminate processes on windows
+        app.quit()
     }
 });
 
@@ -27,10 +30,18 @@ app.on('ready', async () => {
 
     // if db is not initialized -> setup process
     // if db is initialized, then we need to wait until the migration process is finished
-    if (await sqlInit.isDbInitialized()) {
+    if (sqlInit.isDbInitialized()) {
         await sqlInit.dbReady;
 
-        await windowService.createMainWindow();
+        await windowService.createMainWindow(app);
+
+        if (process.platform === 'darwin') {
+            app.on('activate', async () => {
+                if (BrowserWindow.getAllWindows().length === 0) {
+                    await windowService.createMainWindow(app);
+                }
+            });
+        }
 
         tray.createTray();
     }
@@ -48,4 +59,4 @@ app.on('will-quit', () => {
 // this is to disable electron warning spam in the dev console (local development only)
 process.env['ELECTRON_DISABLE_SECURITY_WARNINGS'] = 'true';
 
-require('./src/www');
+require('./src/www.js');

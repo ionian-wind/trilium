@@ -2,32 +2,36 @@ import libraryLoader from "../services/library_loader.js";
 import server from "../services/server.js";
 import attributeService from "../services/attributes.js";
 import hoistedNoteService from "../services/hoisted_note.js";
-import appContext from "../services/app_context.js";
+import appContext from "../components/app_context.js";
 import NoteContextAwareWidget from "./note_context_aware_widget.js";
-import linkContextMenuService from "../services/link_context_menu.js";
+import linkContextMenuService from "../menus/link_context_menu.js";
+import utils from "../services/utils.js";
+
+const esc = utils.escapeHtml;
 
 const TPL = `<div class="note-map-widget" style="position: relative;">
     <style>
-        .type-special .note-detail, .note-detail-note-map {
+        .note-detail-note-map {
             height: 100%;
+            overflow: hidden;
         }
         
         .map-type-switcher {
             position: absolute; 
             top: 10px; 
-            right: 10px; 
-            background-color: var(--accented-background-color);
+            left: 10px; 
             z-index: 10; /* should be below dropdown (note actions) */
         }
         
-        .map-type-switcher .bx {
-            font-size: 120%;
+        .map-type-switcher button.bx {
+            font-size: 130%;
+            padding: 1px 10px 1px 10px;
         }
     </style>
     
-    <div class="btn-group btn-group-sm map-type-switcher floating-button" role="group">
-      <button type="button" class="btn icon-button bx bx-network-chart" title="Link Map" data-type="link"></button>
-      <button type="button" class="btn icon-button bx bx-sitemap" title="Tree map" data-type="tree"></button>
+    <div class="btn-group btn-group-sm map-type-switcher" role="group">
+      <button type="button" class="btn bx bx-network-chart" title="Link Map" data-type="link"></button>
+      <button type="button" class="btn bx bx-sitemap" title="Tree map" data-type="tree"></button>
     </div>
 
     <div class="style-resolver"></div>
@@ -51,7 +55,7 @@ export default class NoteMapWidget extends NoteContextAwareWidget {
         this.$container = this.$widget.find(".note-map-container");
         this.$styleResolver = this.$widget.find('.style-resolver');
 
-        window.addEventListener('resize', () => this.setHeight(), false);
+        new ResizeObserver(() => this.setDimensions()).observe(this.$container[0]);
 
         this.$widget.find(".map-type-switcher button").on("click",  async e => {
             const type = $(e.target).closest("button").attr("data-type");
@@ -62,7 +66,7 @@ export default class NoteMapWidget extends NoteContextAwareWidget {
         super.doRender();
     }
 
-    setHeight() {
+    setDimensions() {
         if (!this.graph) { // no graph has been even rendered
             return;
         }
@@ -74,7 +78,7 @@ export default class NoteMapWidget extends NoteContextAwareWidget {
             .width($parent.width());
     }
 
-    async refreshWithNote() {
+    async refreshWithNote(note) {
         this.$widget.show();
 
         this.css = {
@@ -85,8 +89,6 @@ export default class NoteMapWidget extends NoteContextAwareWidget {
 
         this.mapType = this.note.getLabelValue("mapType") === "tree" ? "tree" : "link";
 
-        this.setHeight();
-
         await libraryLoader.requireLibrary(libraryLoader.FORCE_GRAPH);
 
         this.graph = ForceGraph()(this.$container[0])
@@ -95,15 +97,15 @@ export default class NoteMapWidget extends NoteContextAwareWidget {
             .onZoom(zoom => this.setZoomLevel(zoom.k))
             .d3AlphaDecay(0.01)
             .d3VelocityDecay(0.08)
-            .nodeCanvasObject((node, ctx) => this.paintNode(node, this.stringToColor(node.type), ctx))
-            .nodePointerAreaPaint((node, ctx) => this.paintNode(node, this.stringToColor(node.type), ctx))
+            .nodeCanvasObject((node, ctx) => this.paintNode(node, this.getColorForNode(node), ctx))
+            .nodePointerAreaPaint((node, ctx) => this.paintNode(node, this.getColorForNode(node), ctx))
             .nodePointerAreaPaint((node, color, ctx) => {
                 ctx.fillStyle = color;
                 ctx.beginPath();
                 ctx.arc(node.x, node.y, this.noteIdToSizeMap[node.id], 0, 2 * Math.PI, false);
                 ctx.fill();
             })
-            .nodeLabel(node => node.name)
+            .nodeLabel(node => esc(node.name))
             .maxZoom(7)
             .warmupTicks(30)
             .linkDirectionalArrowLength(5)
@@ -115,12 +117,12 @@ export default class NoteMapWidget extends NoteContextAwareWidget {
 
         if (this.mapType === 'link') {
             this.graph
-                .linkLabel(l => `${l.source.name} - <strong>${l.name}</strong> - ${l.target.name}`)
+                .linkLabel(l => `${esc(l.source.name)} - <strong>${esc(l.name)}</strong> - ${esc(l.target.name)}`)
                 .linkCanvasObject((link, ctx) => this.paintLink(link, ctx))
                 .linkCanvasObjectMode(() => "after");
         }
 
-        let mapRootNoteId = this.getMapRootNoteId();
+        const mapRootNoteId = this.getMapRootNoteId();
         const data = await this.loadNotesAndRelations(mapRootNoteId);
 
         const nodeLinkRatio = data.nodes.length / data.links.length;
@@ -152,9 +154,19 @@ export default class NoteMapWidget extends NoteContextAwareWidget {
         return mapRootNoteId;
     }
 
-    stringToColor(str) {
+    getColorForNode(node) {
+        if (node.color) {
+            return node.color;
+        } else if (this.widgetMode === 'ribbon' && node.id === this.noteId) {
+            return 'red'; // subtree root mark as red
+        } else {
+            return this.generateColorFromString(node.type);
+        }
+    }
+
+    generateColorFromString(str) {
         if (this.themeStyle === "dark") {
-            str = "0" + str; // magic lightening modifier
+            str = `0${str}`; // magic lightning modifier
         }
 
         let hash = 0;
@@ -166,7 +178,7 @@ export default class NoteMapWidget extends NoteContextAwareWidget {
         for (let i = 0; i < 3; i++) {
             const value = (hash >> (i * 8)) & 0xFF;
 
-            color += ('00' + value.toString(16)).substr(-2);
+            color += (`00${value.toString(16)}`).substr(-2);
         }
         return color;
     }
@@ -186,7 +198,7 @@ export default class NoteMapWidget extends NoteContextAwareWidget {
         const {x, y} = node;
         const size = this.noteIdToSizeMap[node.id];
 
-        ctx.fillStyle = (this.widgetMode === 'ribbon' && node.id === this.noteId) ? 'red' : color;
+        ctx.fillStyle = color;
         ctx.beginPath();
         ctx.arc(x, y, size, 0, 2 * Math.PI, false);
         ctx.fill();
@@ -200,14 +212,14 @@ export default class NoteMapWidget extends NoteContextAwareWidget {
         }
 
         ctx.fillStyle = this.css.textColor;
-        ctx.font = size + 'px ' + this.css.fontFamily;
+        ctx.font = `${size}px ${this.css.fontFamily}`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
         let title = node.name;
 
         if (title.length > 15) {
-            title = title.substr(0, 15) + "...";
+            title = `${title.substr(0, 15)}...`;
         }
 
         ctx.fillText(title, x, y + Math.round(size * 1.5));
@@ -218,7 +230,7 @@ export default class NoteMapWidget extends NoteContextAwareWidget {
             return;
         }
 
-        ctx.font = '3px ' + this.css.fontFamily;
+        ctx.font = `3px ${this.css.fontFamily}`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillStyle = this.css.mutedTextColor;
@@ -254,16 +266,17 @@ export default class NoteMapWidget extends NoteContextAwareWidget {
 
         const links = this.getGroupedLinks(resp.links);
 
-        this.nodes = resp.notes.map(([noteId, title, type]) => ({
+        this.nodes = resp.notes.map(([noteId, title, type, color]) => ({
             id: noteId,
             name: title,
             type: type,
+            color: color
         }));
 
         return {
             nodes: this.nodes,
             links: links.map(link => ({
-                id: link.id,
+                id: `${link.sourceNoteId}-${link.targetNoteId}`,
                 source: link.sourceNoteId,
                 target: link.targetNoteId,
                 name: link.names.join(", ")
@@ -330,8 +343,10 @@ export default class NoteMapWidget extends NoteContextAwareWidget {
     renderData(data) {
         this.graph.graphData(data);
 
-        if (this.widgetMode === 'ribbon') {
+        if (this.widgetMode === 'ribbon' && this.note?.type !== 'search') {
             setTimeout(() => {
+                this.setDimensions();
+
                 const subGraphNoteIds = this.getSubGraphConnectedToCurrentNote(data);
 
                 this.graph.zoomToFit(400, 50, node => subGraphNoteIds.has(node.id));
@@ -341,17 +356,34 @@ export default class NoteMapWidget extends NoteContextAwareWidget {
                 }
             }, 1000);
         }
-        else if (this.widgetMode === 'type') {
+        else {
             if (data.nodes.length > 1) {
                 setTimeout(() => {
-                    this.graph.zoomToFit(400, 10);
+                    this.setDimensions();
 
-                    if (data.nodes.length < 30) {
+                    const noteIdsWithLinks = this.getNoteIdsWithLinks(data);
+
+                    if (noteIdsWithLinks.size > 0) {
+                        this.graph.zoomToFit(400, 30, node => noteIdsWithLinks.has(node.id));
+                    }
+
+                    if (noteIdsWithLinks.size < 30) {
                         this.graph.d3VelocityDecay(0.4);
                     }
                 }, 1000);
             }
         }
+    }
+
+    getNoteIdsWithLinks(data) {
+        const noteIds = new Set();
+
+        for (const link of data.links) {
+            noteIds.add(link.source.id);
+            noteIds.add(link.target.id);
+        }
+
+        return noteIds;
     }
 
     getSubGraphConnectedToCurrentNote(data) {
@@ -397,7 +429,12 @@ export default class NoteMapWidget extends NoteContextAwareWidget {
     }
 
     entitiesReloadedEvent({loadResults}) {
-        if (loadResults.getAttributes(this.componentId).find(attr => attr.name === 'mapType' && attributeService.isAffecting(attr, this.note))) {
+        if (loadResults.getAttributeRows(this.componentId).find(
+            attr =>
+                attr.type === 'label'
+                && ['mapType', 'mapRootNoteId'].includes(attr.name)
+                && attributeService.isAffecting(attr, this.note)
+        )) {
             this.refresh();
         }
     }

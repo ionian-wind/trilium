@@ -1,7 +1,7 @@
 "use strict";
 
-const Expression = require('./expression');
-const TrueExp = require("./true");
+const Expression = require('./expression.js');
+const TrueExp = require('./true.js');
 
 class AndExp extends Expression {
     static of(subExpressions) {
@@ -21,9 +21,9 @@ class AndExp extends Expression {
         this.subExpressions = subExpressions;
     }
 
-    execute(inputNoteSet, executionContext) {
+    execute(inputNoteSet, executionContext, searchContext) {
         for (const subExpression of this.subExpressions) {
-            inputNoteSet = subExpression.execute(inputNoteSet, executionContext);
+            inputNoteSet = subExpression.execute(inputNoteSet, executionContext, searchContext);
         }
 
         return inputNoteSet;

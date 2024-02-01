@@ -9,12 +9,16 @@ const TPL = `
         flex-shrink: 0;
     }
 
-    .title-bar-buttons div button.icon-action {
+    .title-bar-buttons div button {
         border: none !important;
+        border-radius: 0;
         background: none !important;
         font-size: 150%;
         height: 40px;
         width: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
     
     .title-bar-buttons div:hover button {
@@ -26,12 +30,21 @@ const TPL = `
         height: 40px;
         width: 40px;
     }
+    
+    .title-bar-buttons .top-btn.active{
+        background-color:var(--accented-background-color);
+    }
+
+    .title-bar-buttons .btn.focus, .title-bar-buttons .btn:focus {
+        box-shadow: none;
+    }
     </style>
 
     <!-- divs act as a hitbox for the buttons, making them clickable on corners -->
-    <div class="minimize-btn"><button class="btn icon-action bx bx-minus"></button></div>
-    <div class="maximize-btn"><button class="btn icon-action bx bx-checkbox"></button></div>
-    <div class="close-btn"><button class="btn icon-action bx bx-x"></button></div>
+    <div class="top-btn" title="Keep this window on top. "><button class="btn bx bx-pin"></button></div>
+    <div class="minimize-btn"><button class="btn bx bx-minus"></button></div>
+    <div class="maximize-btn"><button class="btn bx bx-checkbox"></button></div>
+    <div class="close-btn"><button class="btn bx bx-x"></button></div>
 </div>`;
 
 export default class TitleBarButtonsWidget extends BasicWidget {
@@ -43,9 +56,33 @@ export default class TitleBarButtonsWidget extends BasicWidget {
         this.$widget = $(TPL);
         this.contentSized();
 
+        const $topBtn = this.$widget.find(".top-btn");
         const $minimizeBtn = this.$widget.find(".minimize-btn");
         const $maximizeBtn = this.$widget.find(".maximize-btn");
         const $closeBtn = this.$widget.find(".close-btn");
+
+        // When the window is restarted, the window will not be reset when it is set to the top,
+        // so get the window status and set the icon background
+        setTimeout(() => {
+            const remote = utils.dynamicRequire('@electron/remote');
+            if (remote.BrowserWindow.getFocusedWindow()?.isAlwaysOnTop()) {
+                $topBtn.addClass('active');
+            }
+        }, 1000);
+
+        $topBtn.on('click', () => {
+            $topBtn.trigger('blur');
+            const remote = utils.dynamicRequire('@electron/remote');
+            const focusedWindow = remote.BrowserWindow.getFocusedWindow();
+            const isAlwaysOnTop = focusedWindow.isAlwaysOnTop()
+            if (isAlwaysOnTop) {
+                focusedWindow.setAlwaysOnTop(false)
+                $topBtn.removeClass('active');
+            } else {
+                focusedWindow.setAlwaysOnTop(true);
+                $topBtn.addClass('active');
+            }
+        });
 
         $minimizeBtn.on('click', () => {
             $minimizeBtn.trigger('blur');

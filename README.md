@@ -1,17 +1,23 @@
 # Trilium Notes
 
-[English](https://github.com/zadam/trilium/blob/master/README.md) | [Chinese](https://github.com/zadam/trilium/blob/master/README-ZH_CN.md) | [Russian](https://github.com/zadam/trilium/blob/master/README.ru.md)
+## Trilium is in maintenance mode - see details in https://github.com/zadam/trilium/issues/4620
 
-[![Join the chat at https://gitter.im/trilium-notes/Lobby](https://badges.gitter.im/trilium-notes/Lobby.svg)](https://gitter.im/trilium-notes/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-Trilium Notes is a hierarchical note taking application with focus on building large personal knowledge bases. See [screenshots](https://github.com/zadam/trilium/wiki/Screenshot-tour) for quick overview:
+[![Join the chat at https://gitter.im/trilium-notes/Lobby](https://badges.gitter.im/trilium-notes/Lobby.svg)](https://gitter.im/trilium-notes/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge) [English](https://github.com/zadam/trilium/blob/master/README.md) | [Chinese](https://github.com/zadam/trilium/blob/master/README-ZH_CN.md) | [Russian](https://github.com/zadam/trilium/blob/master/README.ru.md) | [Japanese](https://github.com/zadam/trilium/blob/master/README.ja.md)
 
-![](https://raw.githubusercontent.com/wiki/zadam/trilium/images/screenshot.png)
+Trilium Notes is a hierarchical note taking application with focus on building large personal knowledge bases. 
 
-Ukraine is currently suffering from Russian aggression, please consider donating to [one of these charities](https://old.reddit.com/r/ukraine/comments/s6g5un/want_to_support_ukraine_heres_a_list_of_charities/).
+See [screenshots](https://github.com/zadam/trilium/wiki/Screenshot-tour) for quick overview:
 
-<img src="https://upload.wikimedia.org/wikipedia/commons/4/49/Flag_of_Ukraine.svg" alt="drawing" width="600"/>
+<a href="https://github.com/zadam/trilium/wiki/Screenshot-tour"><img src="https://raw.githubusercontent.com/wiki/zadam/trilium/images/screenshot.png" alt="Trilium Screenshot" width="1000"></a>
 
-## Features
+Ukraine is currently defending itself from Russian aggression, please consider [donating to Ukrainian Army or humanitarian charities](https://standforukraine.com/).
+
+<p float="left">
+  <img src="https://upload.wikimedia.org/wikipedia/commons/4/49/Flag_of_Ukraine.svg" alt="drawing" width="400"/>
+  <img src="https://signmyrocket.com//uploads/2b2a523cd0c0e76cdbba95a89a9636b2_1676971281.jpg" alt="Trilium Notes supports Ukraine!" width="570"/>
+</p>
+
+## 🎁 Features
 
 * Notes can be arranged into arbitrarily deep tree. Single note can be placed into multiple places in the tree (see [cloning](https://github.com/zadam/trilium/wiki/Cloning-notes))
 * Rich WYSIWYG note editing including e.g. tables, images and [math](https://github.com/zadam/trilium/wiki/Text-notes#math-support) with markdown [autoformat](https://github.com/zadam/trilium/wiki/Text-notes#autoformat)
@@ -23,6 +29,7 @@ Ukraine is currently suffering from Russian aggression, please consider donating
   * there's a [3rd party service for hosting synchronisation server](https://trilium.cc/paid-hosting)
 * [Sharing](https://github.com/zadam/trilium/wiki/Sharing) (publishing) notes to public internet
 * Strong [note encryption](https://github.com/zadam/trilium/wiki/Protected-notes) with per-note granularity
+* Sketching diagrams with built-in Excalidraw (note type "canvas")
 * [Relation maps](https://github.com/zadam/trilium/wiki/Relation-map) and [link maps](https://github.com/zadam/trilium/wiki/Link-map) for visualizing notes and their relations
 * [Scripting](https://github.com/zadam/trilium/wiki/Scripts) - see [Advanced showcases](https://github.com/zadam/trilium/wiki/Advanced-showcases)
 * [REST API](https://github.com/zadam/trilium/wiki/ETAPI) for automation
@@ -32,7 +39,9 @@ Ukraine is currently suffering from Russian aggression, please consider donating
 * [Evernote](https://github.com/zadam/trilium/wiki/Evernote-import) and [Markdown import & export](https://github.com/zadam/trilium/wiki/Markdown)
 * [Web Clipper](https://github.com/zadam/trilium/wiki/Web-clipper) for easy saving of web content
 
-## Builds
+Check out [awesome-trilium](https://github.com/Nriver/awesome-trilium) for 3rd party themes, scripts, plugins and more.
+
+## 🏗 Builds
 
 Trilium is provided as either desktop application (Linux and Windows) or web application hosted on your server (Linux). Mac OS desktop build is available, but it is [unsupported](https://github.com/zadam/trilium/wiki/FAQ#mac-os-support).
 
@@ -40,13 +49,17 @@ Trilium is provided as either desktop application (Linux and Windows) or web app
 * If you want to install Trilium on server, follow [this page](https://github.com/zadam/trilium/wiki/Server-installation).
   * Currently only recent Chrome and Firefox are supported (tested) browsers.
 
-## Documentation
+Trilium is also provided as a Flatpak:
+
+[<img width="240" src="https://flathub.org/assets/badges/flathub-badge-en.png">](https://flathub.org/apps/details/com.github.zadam.trilium)
+
+## 📝 Documentation
 
 [See wiki for complete list of documentation pages.](https://github.com/zadam/trilium/wiki/)
 
 You can also read [Patterns of personal knowledge base](https://github.com/zadam/trilium/wiki/Patterns-of-personal-knowledge-base) to get some inspiration on how you might use Trilium.
 
-## Contribute
+## 💻 Contribute
 
 Use a browser based dev environment
 
@@ -58,17 +71,17 @@ npm install
 npm run start-server
 ```
 
-## Shoutouts
+## 📢 Shoutouts
 
 * [CKEditor 5](https://github.com/ckeditor/ckeditor5) - best WYSIWYG editor on the market, very interactive and listening team
 * [FancyTree](https://github.com/mar10/fancytree) - very feature rich tree library without real competition. Trilium Notes would not be the same without it.
 * [CodeMirror](https://github.com/codemirror/CodeMirror) - code editor with support for huge amount of languages
 * [jsPlumb](https://github.com/jsplumb/jsplumb) - visual connectivity library without competition. Used in [relation maps](https://github.com/zadam/trilium/wiki/Relation-map) and [link maps](https://github.com/zadam/trilium/wiki/Link-map)
 
-## Donating
+## 🤝 Support
 
-You can donate using GitHub Sponsors, [PayPal](https://paypal.me/za4am) or Bitcoin (bitcoin:bc1qv3svjn40v89mnkre5vyvs2xw6y8phaltl385d2).
+You can support Trilium using GitHub Sponsors, [PayPal](https://paypal.me/za4am) or Bitcoin (bitcoin:bc1qv3svjn40v89mnkre5vyvs2xw6y8phaltl385d2).
 
-## License
+## 🔑 License
 
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.

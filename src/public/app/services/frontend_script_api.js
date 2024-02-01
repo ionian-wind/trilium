@@ -7,57 +7,73 @@ import noteTooltipService from './note_tooltip.js';
 import protectedSessionService from './protected_session.js';
 import dateNotesService from './date_notes.js';
 import searchService from './search.js';
-import CollapsibleWidget from '../widgets/collapsible_widget.js';
+import RightPanelWidget from '../widgets/right_panel_widget.js';
 import ws from "./ws.js";
-import appContext from "./app_context.js";
+import appContext from "../components/app_context.js";
 import NoteContextAwareWidget from "../widgets/note_context_aware_widget.js";
-import NoteContextCachingWidget from "../widgets/note_context_caching_widget.js";
 import BasicWidget from "../widgets/basic_widget.js";
+import SpacedUpdate from "./spaced_update.js";
+import shortcutService from "./shortcuts.js";
+import dialogService from "./dialog.js";
+
 
 /**
- * This is the main frontend API interface for scripts. It's published in the local "api" object.
+ * A whole number
+ * @typedef {number} int
+ */
+
+/**
+ * An instance of the frontend api available globally.
+ * @global
+ * @var {FrontendScriptApi} api
+ */
+
+/**
+ * <p>This is the main frontend API interface for scripts. All the properties and methods are published in the "api" object
+ * available in the JS frontend notes. You can use e.g. <code>api.showMessage(api.startNote.title);</code></p>
  *
  * @constructor
- * @hideconstructor
  */
 function FrontendScriptApi(startNote, currentNote, originEntity = null, $container = null) {
-    const $pluginButtons = $("#plugin-buttons");
-
-    /** @property {jQuery} container of all the rendered script content */
+    /**
+     * Container of all the rendered script content
+     * @type {jQuery}
+     * */
     this.$container = $container;
 
-    /** @property {object} note where script started executing */
+    /**
+     * Note where the script started executing, i.e., the (event) entrypoint of the current script execution.
+     * @type {FNote}
+     */
     this.startNote = startNote;
-    /** @property {object} note where script is currently executing */
+
+    /**
+     * Note where the script is currently executing, i.e. the note where the currently executing source code is written.
+     * @type {FNote}
+     */
     this.currentNote = currentNote;
-    /** @property {object|null} entity whose event triggered this execution */
+
+    /**
+     * Entity whose event triggered this execution.
+     * @type {object|null}
+     */
     this.originEntity = originEntity;
 
-    // to keep consistency with backend API
+    /**
+     * day.js library for date manipulation.
+     * See {@link https://day.js.org} for documentation
+     * @see https://day.js.org
+     * @type {dayjs}
+     */
     this.dayjs = dayjs;
 
-    /** @property {CollapsibleWidget} */
-    this.CollapsibleWidget = CollapsibleWidget;
+    /** @type {RightPanelWidget} */
+    this.RightPanelWidget = RightPanelWidget;
 
-    /**
-     * @property {NoteContextAwareWidget}
-     * @deprecated use NoteContextAwareWidget instead
-     */
-    this.TabAwareWidget = NoteContextAwareWidget;
-
-    /** @property {NoteContextAwareWidget} */
+    /** @type {NoteContextAwareWidget} */
     this.NoteContextAwareWidget = NoteContextAwareWidget;
 
-    /**
-     * @property {NoteContextCachingWidget}
-     * @deprecated use NoteContextCachingWidget instead
-     */
-    this.TabCachingWidget = NoteContextCachingWidget;
-
-    /** @property {NoteContextAwareWidget} */
-    this.NoteContextCachingWidget = NoteContextCachingWidget;
-
-    /** @property {BasicWidget} */
+    /** @type {BasicWidget} */
     this.BasicWidget = BasicWidget;
 
     /**
@@ -75,83 +91,75 @@ function FrontendScriptApi(startNote, currentNote, originEntity = null, $contain
      * Activates newly created note. Compared to this.activateNote() also makes sure that frontend has been fully synced.
      *
      * @param {string} notePath (or noteId)
-     * @return {Promise<void>}
+     * @returns {Promise<void>}
      */
     this.activateNewNote = async notePath => {
         await ws.waitForMaxKnownEntityChangeId();
 
         await appContext.tabManager.getActiveContext().setNote(notePath);
-        appContext.triggerEvent('focusAndSelectTitle');
+        await appContext.triggerEvent('focusAndSelectTitle');
     };
 
     /**
      * Open a note in a new tab.
      *
+     * @method
      * @param {string} notePath (or noteId)
      * @param {boolean} activate - set to true to activate the new tab, false to stay on the current tab
-     * @return {Promise<void>}
+     * @returns {Promise<void>}
      */
     this.openTabWithNote = async (notePath, activate) => {
         await ws.waitForMaxKnownEntityChangeId();
 
-        await appContext.tabManager.openContextWithNote(notePath, activate);
+        await appContext.tabManager.openTabWithNoteWithHoisting(notePath, { activate });
 
         if (activate) {
-            appContext.triggerEvent('focusAndSelectTitle');
+            await appContext.triggerEvent('focusAndSelectTitle');
         }
     };
 
     /**
-     * @typedef {Object} ToolbarButtonOptions
-     * @property {string} title
-     * @property {string} [icon] - name of the boxicon to be used (e.g. "time" for "bx-time" icon)
-     * @property {function} action - callback handling the click on the button
-     * @property {string} [shortcut] - keyboard shortcut for the button, e.g. "alt+t"
+     * Open a note in a new split.
+     *
+     * @method
+     * @param {string} notePath (or noteId)
+     * @param {boolean} activate - set to true to activate the new split, false to stay on the current split
+     * @returns {Promise<void>}
      */
+    this.openSplitWithNote = async (notePath, activate) => {
+        await ws.waitForMaxKnownEntityChangeId();
+
+        const subContexts = appContext.tabManager.getActiveContext().getSubContexts();
+        const {ntxId} = subContexts[subContexts.length - 1];
+
+        await appContext.triggerCommand("openNewNoteSplit", {ntxId, notePath});
+
+        if (activate) {
+            await appContext.triggerEvent('focusAndSelectTitle');
+        }
+    };
 
     /**
-     * Adds new button the the plugin area.
+     * Adds a new launcher to the launchbar. If the launcher (id) already exists, it will be updated.
      *
-     * @param {ToolbarButtonOptions} opts
+     * @method
+     * @deprecated you can now create/modify launchers in the top-left Menu -> Configure Launchbar
+     *             for special needs there's also backend API's createOrUpdateLauncher()
+     * @param {object} opts
+     * @param {string} opts.title
+     * @param {function} opts.action - callback handling the click on the button
+     * @param {string} [opts.id] - id of the button, used to identify the old instances of this button to be replaced
+     *                          ID is optional because of BC, but not specifying it is deprecated. ID can be alphanumeric only.
+     * @param {string} [opts.icon] - name of the boxicon to be used (e.g. "time" for "bx-time" icon)
+     * @param {string} [opts.shortcut] - keyboard shortcut for the button, e.g. "alt+t"
      */
-    this.addButtonToToolbar = opts => {
-        const buttonId = "toolbar-button-" + opts.title.replace(/\s/g, "-");
+    this.addButtonToToolbar = async opts => {
+        console.warn("api.addButtonToToolbar() has been deprecated since v0.58 and may be removed in the future. Use  Menu -> Configure Launchbar to create/update launchers instead.");
 
-        let button;
-        if (utils.isMobile()) {
-            $('#plugin-buttons-placeholder').remove();
-            button = $('<a class="dropdown-item" href="#">')
-                .on('click', () => {
-                    setTimeout(() => $pluginButtons.dropdown('hide'), 0);
-                });
+        const {action, ...reqBody} = opts;
+        reqBody.action = action.toString();
 
-            if (opts.icon) {
-                button.append($("<span>").addClass("bx bx-" + opts.icon))
-                    .append("&nbsp;");
-            }
-
-            button.append($("<span>").text(opts.title));
-        } else {
-            button = $('<span class="button-widget icon-action bx" data-toggle="tooltip" title="" data-placement="right"></span>')
-                .addClass("bx bx-" + (opts.icon || "question-mark"));
-
-            button.attr("title", opts.title);
-            button.tooltip({html: true});
-        }
-
-        button = button.on('click', opts.action);
-
-        button.attr('id', buttonId);
-
-        if ($("#" + buttonId).replaceWith(button).length === 0) {
-            $pluginButtons.append(button);
-        }
-
-        if (opts.shortcut) {
-            utils.bindGlobalShortcut(opts.shortcut, opts.action);
-
-            button.attr("title", "Shortcut " + opts.shortcut);
-        }
+        await server.put('special-notes/api-script-launcher', reqBody);
     };
 
     function prepareParams(params) {
@@ -161,7 +169,7 @@ function FrontendScriptApi(startNote, currentNote, originEntity = null, $contain
 
         return params.map(p => {
             if (typeof p === "function") {
-                return "!@#Function: " + p.toString();
+                return `!@#Function: ${p.toString()}`;
             }
             else {
                 return p;
@@ -170,42 +178,74 @@ function FrontendScriptApi(startNote, currentNote, originEntity = null, $contain
     }
 
     /**
-     * Executes given anonymous function on the backend.
-     * Internally this serializes the anonymous function into string and sends it to backend via AJAX.
-     *
-     * @param {string} script - script to be executed on the backend
-     * @param {Array.<?>} params - list of parameters to the anonymous function to be send to backend
-     * @return {Promise<*>} return value of the executed function on the backend
+     * @private
      */
-    this.runOnBackend = async (script, params = []) => {
-        if (typeof script === "function") {
-            script = script.toString();
+    this.__runOnBackendInner = async (func, params, transactional) => {
+        if (typeof func === "function") {
+            func = func.toString();
         }
 
         const ret = await server.post('script/exec', {
-            script: script,
+            script: func,
             params: prepareParams(params),
             startNoteId: startNote.noteId,
             currentNoteId: currentNote.noteId,
-            originEntityName: "notes", // currently there's no other entity on frontend which can trigger event
-            originEntityId: originEntity ? originEntity.noteId : null
+            originEntityName: "notes", // currently there's no other entity on the frontend which can trigger event
+            originEntityId: originEntity ? originEntity.noteId : null,
+            transactional
         }, "script");
 
         if (ret.success) {
             await ws.waitForMaxKnownEntityChangeId();
 
             return ret.executionResult;
+        } else {
+            throw new Error(`server error: ${ret.error}`);
         }
-        else {
-            throw new Error("server error: " + ret.error);
+    }
+
+    /**
+     * Executes given anonymous function on the backend.
+     * Internally this serializes the anonymous function into string and sends it to backend via AJAX.
+     * Please make sure that the supplied function is synchronous. Only sync functions will work correctly
+     * with transaction management. If you really know what you're doing, you can call api.runAsyncOnBackendWithManualTransactionHandling()
+     *
+     * @method
+     * @param {function|string} func - (synchronous) function to be executed on the backend
+     * @param {Array.<?>} params - list of parameters to the anonymous function to be sent to backend
+     * @returns {Promise<*>} return value of the executed function on the backend
+     */
+    this.runOnBackend = async (func, params = []) => {
+        if (func?.constructor.name === "AsyncFunction" || func?.startsWith?.("async ")) {
+            toastService.showError("You're passing an async function to api.runOnBackend() which will likely not work as you intended. "
+                + "Either make the function synchronous (by removing 'async' keyword), or use api.runAsyncOnBackendWithManualTransactionHandling()");
         }
+
+        return await this.__runOnBackendInner(func, params, true);
     };
 
     /**
-     * @deprecated new name of this API call is runOnBackend so use that
+     * Executes given anonymous function on the backend.
+     * Internally this serializes the anonymous function into string and sends it to backend via AJAX.
+     * This function is meant for advanced needs where an async function is necessary.
+     * In this case, the automatic request-scoped transaction management is not applied,
+     * and you need to manually define transaction via api.transactional().
+     *
+     * If you have a synchronous function, please use api.runOnBackend().
+     *
      * @method
+     * @param {function|string} func - (synchronous) function to be executed on the backend
+     * @param {Array.<?>} params - list of parameters to the anonymous function to be sent to backend
+     * @returns {Promise<*>} return value of the executed function on the backend
      */
-    this.runOnServer = this.runOnBackend;
+    this.runAsyncOnBackendWithManualTransactionHandling = async (func, params = []) => {
+        if (func?.constructor.name === "Function" || func?.startsWith?.("function")) {
+            toastService.showError("You're passing a synchronous function to api.runAsyncOnBackendWithManualTransactionHandling(), " +
+                "while you should likely use api.runOnBackend() instead.");
+        }
+
+        return await this.__runOnBackendInner(func, params, false);
+    };
 
     /**
      * This is a powerful search method - you can search by attributes and their values, e.g.:
@@ -213,7 +253,7 @@ function FrontendScriptApi(startNote, currentNote, originEntity = null, $contain
      *
      * @method
      * @param {string} searchString
-     * @returns {Promise<NoteShort[]>}
+     * @returns {Promise<FNote[]>}
      */
     this.searchForNotes = async searchString => {
         return await searchService.searchForNotes(searchString);
@@ -225,7 +265,7 @@ function FrontendScriptApi(startNote, currentNote, originEntity = null, $contain
      *
      * @method
      * @param {string} searchString
-     * @returns {Promise<NoteShort|null>}
+     * @returns {Promise<FNote|null>}
      */
     this.searchForNote = async searchString => {
         const notes = await this.searchForNotes(searchString);
@@ -234,30 +274,32 @@ function FrontendScriptApi(startNote, currentNote, originEntity = null, $contain
     };
 
     /**
-     * Returns note by given noteId. If note is missing from cache, it's loaded.
+     * Returns note by given noteId. If note is missing from the cache, it's loaded.
      **
+     * @method
      * @param {string} noteId
-     * @return {Promise<NoteShort>}
+     * @returns {Promise<FNote>}
      */
     this.getNote = async noteId => await froca.getNote(noteId);
 
     /**
-     * Returns list of notes. If note is missing from cache, it's loaded.
+     * Returns list of notes. If note is missing from the cache, it's loaded.
      *
      * This is often used to bulk-fill the cache with notes which would have to be picked one by one
-     * otherwise (by e.g. createNoteLink())
+     * otherwise (by e.g. createLink())
      *
+     * @method
      * @param {string[]} noteIds
      * @param {boolean} [silentNotFoundError] - don't report error if the note is not found
-     * @return {Promise<NoteShort[]>}
+     * @returns {Promise<FNote[]>}
      */
     this.getNotes = async (noteIds, silentNotFoundError = false) => await froca.getNotes(noteIds, silentNotFoundError);
 
     /**
      * Update frontend tree (note) cache from the backend.
      *
-     * @param {string[]} noteIds
      * @method
+     * @param {string[]} noteIds
      */
     this.reloadNotes = async noteIds => await froca.reloadNotes(noteIds);
 
@@ -265,7 +307,8 @@ function FrontendScriptApi(startNote, currentNote, originEntity = null, $contain
      * Instance name identifies particular Trilium instance. It can be useful for scripts
      * if some action needs to happen on only one specific instance.
      *
-     * @return {string}
+     * @method
+     * @returns {string}
      */
     this.getInstanceName = () => window.glob.instanceName;
 
@@ -284,7 +327,7 @@ function FrontendScriptApi(startNote, currentNote, originEntity = null, $contain
     this.parseDate = utils.parseDate;
 
     /**
-     * Show info message to the user.
+     * Show an info toast message to the user.
      *
      * @method
      * @param {string} message
@@ -292,7 +335,7 @@ function FrontendScriptApi(startNote, currentNote, originEntity = null, $contain
     this.showMessage = toastService.showMessage;
 
     /**
-     * Show error message to the user.
+     * Show an error toast message to the user.
      *
      * @method
      * @param {string} message
@@ -300,13 +343,55 @@ function FrontendScriptApi(startNote, currentNote, originEntity = null, $contain
     this.showError = toastService.showError;
 
     /**
+     * Show an info dialog to the user.
+     *
      * @method
-     * @deprecated - this is now no-op since all the changes should be gracefully handled per widget
+     * @param {string} message
+     * @returns {Promise}
      */
-    this.refreshTree = () => {};
+    this.showInfoDialog = dialogService.info;
 
     /**
-     * Create note link (jQuery object) for given note.
+     * Show confirm dialog to the user.
+     *
+     * @method
+     * @param {string} message
+     * @returns {Promise<boolean>} promise resolving to true if the user confirmed
+     */
+    this.showConfirmDialog = dialogService.confirm;
+
+    /**
+     * Show prompt dialog to the user.
+     *
+     * @method
+     * @param {object} props
+     * @param {string} props.title
+     * @param {string} props.message
+     * @param {string} props.defaultValue
+     * @returns {Promise<string>} promise resolving to the answer provided by the user
+     */
+    this.showPromptDialog = dialogService.prompt;
+
+    /**
+     * Trigger command. This is a very low-level API which should be avoided if possible.
+     *
+     * @method
+     * @param {string} name
+     * @param {object} data
+     */
+    this.triggerCommand = (name, data) => appContext.triggerCommand(name, data);
+
+    /**
+     * Trigger event. This is a very low-level API which should be avoided if possible.
+     *
+     * @method
+     * @param {string} name
+     * @param {object} data
+     */
+    this.triggerEvent = (name, data) => appContext.triggerEvent(name, data);
+
+    /**
+     * Create a note link (jQuery object) for given note.
      *
      * @method
      * @param {string} notePath (or noteId)
@@ -314,58 +399,105 @@ function FrontendScriptApi(startNote, currentNote, originEntity = null, $contain
      * @param {boolean} [params.showTooltip=true] - enable/disable tooltip on the link
      * @param {boolean} [params.showNotePath=false] - show also whole note's path as part of the link
      * @param {boolean} [params.showNoteIcon=false] - show also note icon before the title
-     * @param {string} [title=] - custom link tile with note's title as default
+     * @param {string} [params.title] - custom link tile with note's title as default
+     * @param {string} [params.title=] - custom link tile with note's title as default
+     * @returns {jQuery} - jQuery element with the link (wrapped in <span>)
      */
-    this.createNoteLink = linkService.createNoteLink;
+    this.createLink = linkService.createLink;
+
+    /** @deprecated - use api.createLink() instead */
+    this.createNoteLink = linkService.createLink;
 
     /**
      * Adds given text to the editor cursor
      *
+     * @method
      * @param {string} text - this must be clear text, HTML is not supported.
-     * @method
      */
-    this.addTextToActiveTabEditor = text => appContext.triggerCommand('addTextToActiveEditor', {text});
+    this.addTextToActiveContextEditor = text => appContext.triggerCommand('addTextToActiveEditor', {text});
 
     /**
      * @method
-     * @returns {NoteShort} active note (loaded into right pane)
+     * @returns {FNote} active note (loaded into center pane)
      */
-    this.getActiveTabNote = () => appContext.tabManager.getActiveContextNote();
+    this.getActiveContextNote = () => appContext.tabManager.getActiveContextNote();
 
     /**
-     * See https://ckeditor.com/docs/ckeditor5/latest/api/module_core_editor_editor-Editor.html for a documentation on the returned instance.
+     * @method
+     * @returns {NoteContext} - returns active context (split)
+     */
+    this.getActiveContext = () => appContext.tabManager.getActiveContext();
+
+    /**
+     * @method
+     * @returns {NoteContext} - returns active main context (first split in a tab, represents the tab as a whole)
+     */
+    this.getActiveMainContext = () => appContext.tabManager.getActiveMainContext();
+
+    /**
+     * @method
+     * @returns {NoteContext[]} - returns all note contexts (splits) in all tabs
+     */
+    this.getNoteContexts = () => appContext.tabManager.getNoteContexts();
+
+    /**
+     * @method
+     * @returns {NoteContext[]} - returns all main contexts representing tabs
+     */
+    this.getMainNoteContexts = () => appContext.tabManager.getMainNoteContexts();
+
+    /**
+     * See https://ckeditor.com/docs/ckeditor5/latest/api/module_core_editor_editor-Editor.html for documentation on the returned instance.
      *
      * @method
-     * @param callback - method receiving "textEditor" instance
+     * @returns {Promise<BalloonEditor>} instance of CKEditor
      */
-    this.getActiveTabTextEditor = callback => appContext.triggerCommand('executeInActiveEditor', {callback});
+    this.getActiveContextTextEditor = () => appContext.tabManager.getActiveContext()?.getTextEditor();
+
+    /**
+     * See https://codemirror.net/doc/manual.html#api
+     *
+     * @method
+     * @returns {Promise<CodeMirror>} instance of CodeMirror
+     */
+    this.getActiveContextCodeEditor = () => appContext.tabManager.getActiveContext()?.getCodeEditor();
+
+    /**
+     * Get access to the widget handling note detail. Methods like `getWidgetType()` and `getTypeWidget()` to get to the
+     * implementation of actual widget type.
+     *
+     * @method
+     * @returns {Promise<NoteDetailWidget>}
+     */
+    this.getActiveNoteDetailWidget = () => new Promise(resolve => appContext.triggerCommand('executeInActiveNoteDetailWidget', {callback: resolve}));
 
     /**
      * @method
-     * @returns {Promise<string|null>} returns note path of active note or null if there isn't active note
+     * @returns {Promise<string|null>} returns a note path of active note or null if there isn't active note
      */
-    this.getActiveTabNotePath = () => appContext.tabManager.getActiveContextNotePath();
+    this.getActiveContextNotePath = () => appContext.tabManager.getActiveContextNotePath();
+
+    /**
+     * Returns component which owns the given DOM element (the nearest parent component in DOM tree)
+     *
+     * @method
+     * @param {Element} el - DOM element
+     * @returns {Component}
+     */
+    this.getComponentByEl = el => appContext.getComponentByEl(el);
 
     /**
      * @method
-     * @param {object} $el - jquery object on which to setup the tooltip
+     * @param {object} $el - jquery object on which to set up the tooltip
+     * @returns {Promise<void>}
      */
     this.setupElementTooltip = noteTooltipService.setupElementTooltip;
-
-    /**
-     * @deprecated use protectNote and protectSubtree instead
-     * @method
-     */
-    this.protectActiveNote = async () => {
-        const activeNote = appContext.tabManager.getActiveContextNote();
-
-        await protectedSessionService.protectNote(activeNote.noteId, true, false);
-    };
 
     /**
      * @method
      * @param {string} noteId
      * @param {boolean} protect - true to protect note, false to unprotect
+     * @returns {Promise<void>}
      */
     this.protectNote = async (noteId, protect) => {
         await protectedSessionService.protectNote(noteId, protect, false);
@@ -375,6 +507,7 @@ function FrontendScriptApi(startNote, currentNote, originEntity = null, $contain
      * @method
      * @param {string} noteId
      * @param {boolean} protect - true to protect subtree, false to unprotect
+     * @returns {Promise<void>}
      */
     this.protectSubTree = async (noteId, protect) => {
         await protectedSessionService.protectNote(noteId, protect, true);
@@ -384,7 +517,7 @@ function FrontendScriptApi(startNote, currentNote, originEntity = null, $contain
      * Returns date-note for today. If it doesn't exist, it is automatically created.
      *
      * @method
-     * @return {Promise<NoteShort>}
+     * @returns {Promise<FNote>}
      */
     this.getTodayNote = dateNotesService.getTodayNote;
 
@@ -393,17 +526,7 @@ function FrontendScriptApi(startNote, currentNote, originEntity = null, $contain
      *
      * @method
      * @param {string} date - e.g. "2019-04-29"
-     * @return {Promise<NoteShort>}
-     * @deprecated use getDayNote instead
-     */
-    this.getDateNote = dateNotesService.getDayNote;
-
-    /**
-     * Returns day note for a given date. If it doesn't exist, it is automatically created.
-     *
-     * @method
-     * @param {string} date - e.g. "2019-04-29"
-     * @return {Promise<NoteShort>}
+     * @returns {Promise<FNote>}
      */
     this.getDayNote = dateNotesService.getDayNote;
 
@@ -412,16 +535,16 @@ function FrontendScriptApi(startNote, currentNote, originEntity = null, $contain
      *
      * @method
      * @param {string} date - e.g. "2019-04-29"
-     * @return {Promise<NoteShort>}
+     * @returns {Promise<FNote>}
      */
-     this.getWeekNote = dateNotesService.getWeekNote;
+    this.getWeekNote = dateNotesService.getWeekNote;
 
     /**
      * Returns month-note. If it doesn't exist, it is automatically created.
      *
      * @method
      * @param {string} month - e.g. "2019-04"
-     * @return {Promise<NoteShort>}
+     * @returns {Promise<FNote>}
      */
     this.getMonthNote = dateNotesService.getMonthNote;
 
@@ -430,7 +553,7 @@ function FrontendScriptApi(startNote, currentNote, originEntity = null, $contain
      *
      * @method
      * @param {string} year - e.g. "2019"
-     * @return {Promise<NoteShort>}
+     * @returns {Promise<FNote>}
      */
     this.getYearNote = dateNotesService.getYearNote;
 
@@ -439,7 +562,7 @@ function FrontendScriptApi(startNote, currentNote, originEntity = null, $contain
      *
      * @method
      * @param {string} noteId - set hoisted note. 'root' will effectively unhoist
-     * @return {Promise}
+     * @returns {Promise<void>}
      */
     this.setHoistedNoteId = (noteId) => {
         const activeNoteContext = appContext.tabManager.getActiveContext();
@@ -453,17 +576,21 @@ function FrontendScriptApi(startNote, currentNote, originEntity = null, $contain
      * @method
      * @param {string} keyboardShortcut - e.g. "ctrl+shift+a"
      * @param {function} handler
+     * @param {string} [namespace] - specify namespace of the handler for the cases where call for bind may be repeated.
+     *                               If a handler with this ID exists, it's replaced by the new handler.
+     * @returns {Promise<void>}
      */
-    this.bindGlobalShortcut = utils.bindGlobalShortcut;
+    this.bindGlobalShortcut = shortcutService.bindGlobalShortcut;
 
     /**
-     * Trilium runs in backend and frontend process, when something is changed on the backend from script,
+     * Trilium runs in a backend and frontend process, when something is changed on the backend from a script,
      * frontend will get asynchronously synchronized.
      *
      * This method returns a promise which resolves once all the backend -> frontend synchronization is finished.
-     * Typical use case is when new note has been created, we should wait until it is synced into frontend and only then activate it.
+     * Typical use case is when a new note has been created, we should wait until it is synced into frontend and only then activate it.
      *
      * @method
+     * @returns {Promise<void>}
      */
     this.waitUntilSynced = ws.waitForMaxKnownEntityChangeId;
 
@@ -471,6 +598,7 @@ function FrontendScriptApi(startNote, currentNote, originEntity = null, $contain
      * This will refresh all currently opened notes which have included note specified in the parameter
      *
      * @param includedNoteId - noteId of the included note
+     * @returns {Promise<void>}
      */
     this.refreshIncludedNote = includedNoteId => appContext.triggerEvent('refreshIncludedNote', {noteId: includedNoteId});
 
@@ -478,10 +606,53 @@ function FrontendScriptApi(startNote, currentNote, originEntity = null, $contain
      * Return randomly generated string of given length. This random string generation is NOT cryptographically secure.
      *
      * @method
-     * @param {number} length of the string
+     * @param {int} length of the string
      * @returns {string} random string
      */
     this.randomString = utils.randomString;
+
+    /**
+     * @method
+     * @param {int} size in bytes
+     * @return {string} formatted string
+     */
+    this.formatSize = utils.formatSize;
+
+    /**
+     * @method
+     * @param {int} size in bytes
+     * @return {string} formatted string
+     * @deprecated - use api.formatSize()
+     */
+    this.formatNoteSize = utils.formatSize;
+
+    this.logMessages = {};
+    this.logSpacedUpdates = {};
+
+    /**
+     * Log given message to the log pane in UI
+     *
+     * @param message
+     * @returns {void}
+     */
+    this.log = message => {
+        const {noteId} = this.startNote;
+
+        message = `${utils.now()}: ${message}`;
+
+        console.log(`Script ${noteId}: ${message}`);
+
+        this.logMessages[noteId] = this.logMessages[noteId] || [];
+        this.logSpacedUpdates[noteId] = this.logSpacedUpdates[noteId] || new SpacedUpdate(() => {
+            const messages = this.logMessages[noteId];
+            this.logMessages[noteId] = [];
+
+            appContext.triggerEvent("apiLogMessages", {noteId, messages});
+        }, 100);
+
+        this.logMessages[noteId].push(message);
+        this.logSpacedUpdates[noteId].scheduleUpdate();
+    };
 }
 
 export default FrontendScriptApi;

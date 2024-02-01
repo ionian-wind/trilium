@@ -42,7 +42,7 @@ export default class SimilarNotesWidget extends NoteContextAwareWidget {
     isEnabled() {
         return super.isEnabled()
             && this.note.type !== 'search'
-            && !this.note.hasLabel('similarNotesWidgetDisabled');
+            && !this.note.isLabelTruthy('similarNotesWidgetDisabled');
     }
 
     getTitle() {
@@ -60,11 +60,11 @@ export default class SimilarNotesWidget extends NoteContextAwareWidget {
         this.$similarNotesWrapper = this.$widget.find(".similar-notes-wrapper");
     }
 
-    async refreshWithNote() {
+    async refreshWithNote(note) {
         // remember which title was when we found the similar notes
         this.title = this.note.title;
 
-        const similarNotes = await server.get('similar-notes/' + this.noteId);
+        const similarNotes = await server.get(`similar-notes/${this.noteId}`);
 
         if (similarNotes.length === 0) {
             this.$similarNotesWrapper.empty().append("No similar notes found.");
@@ -85,7 +85,7 @@ export default class SimilarNotesWidget extends NoteContextAwareWidget {
                 continue;
             }
 
-            const $item = (await linkService.createNoteLink(similarNote.notePath.join("/")))
+            const $item = (await linkService.createLink(similarNote.notePath.join("/")))
                 .css("font-size", 24 * (1 - 1 / (1 +  similarNote.score)));
 
             $list.append($item);
