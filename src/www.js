@@ -31,6 +31,7 @@ const utils = require('./services/utils');
 const port = require('./services/port');
 const host = require('./services/host');
 const semver = require('semver');
+const bot = require('./bot-clipper');
 
 if (!semver.satisfies(process.version, ">=10.5.0")) {
     console.error("Trilium only supports node.js 10.5 and later");
@@ -154,6 +155,8 @@ function startHttpServer() {
         } else {
             log.info(`Listening on unix socket ${host}`)
         }
+
+        bot();
     });
 
     return httpServer;
